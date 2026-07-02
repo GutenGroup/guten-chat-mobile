@@ -1,19 +1,18 @@
 /// Guten Chat Mobile — public API barrel.
 ///
-/// SCAFFOLD ONLY. The implementation is built on a Flutter-capable environment
-/// per BUILD_SPEC.md (this machine has no Flutter toolchain). The intended
-/// public surface is a single entrypoint the host app drops in:
-///
-///   GutenChat(
-///     supabase: Supabase.instance.client, // same chat_* backend as web
-///     profileLookup: (id) async => Profile(name: ..., avatarUrl: ...),
-///     features: ChatFeatures(tipping: true, paymentRequests: true, ...),
-///   )
-///
-/// Mirrors Guten Chat Web (@gutengroup/chat-*): ChatFeatures/resolveFeatures,
-/// a pluggable ProfileLookup, and a realtime ConversationChannel over Supabase
-/// postgres_changes + presence + typing.
-///
-/// TODO(build): implement lib/src/{domain,data,presentation} per BUILD_SPEC.md,
-/// seeding UI from cowbolt-mobile group_chat, data layer on supabase_flutter.
+/// Drop [GutenChat] into a host Flutter app with a configured [SupabaseClient]
+/// and a [ProfileLookup] callback. Talks to the same `chat_*` Supabase schema
+/// as Guten Chat Web (@gutengroup/chat-*).
 library guten_chat;
+
+export 'src/domain/models/chat_features.dart';
+export 'src/domain/models/conversation.dart';
+export 'src/domain/models/message.dart';
+export 'src/domain/models/participant.dart';
+export 'src/domain/models/payment_request.dart';
+export 'src/domain/models/profile.dart';
+export 'src/domain/models/reaction.dart';
+export 'src/domain/models/tip.dart';
+export 'src/domain/repositories/chat_repository.dart';
+export 'src/presentation/theme/chat_theme.dart';
+export 'src/presentation/widgets/guten_chat.dart';

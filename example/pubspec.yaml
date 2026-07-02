@@ -1,0 +1,22 @@
+name: guten_chat_example
+description: Example app demonstrating the Guten Chat Mobile package.
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  guten_chat:
+    path: ../
+  supabase_flutter: ^2.8.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -11,6 +11,7 @@ Future<void> main() async {
       'SUPABASE_URL',
       defaultValue: 'https://your-project.supabase.co',
     ),
+    // ignore: deprecated_member_use
     anonKey: const String.fromEnvironment(
       'SUPABASE_ANON_KEY',
       defaultValue: 'your-anon-key',

@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.4.0
+## 0.4.1
 
 ### Added
 - iMessage-class message context menu on tap/long-press: lifted bubble, blurred backdrop, quick reactions (❤️ 😂 👍 ‼️ 🙏 + full emoji picker), and action sheet (Reply, Copy, Tip, Forward, Delete).
-- Composer bottom-left `+` attach menu with labeled speed-dial pills: Voice note, Photo, Camera, HTML file, File.
-- Voice note recording (`record`) and playback bubble with waveform (`just_audio`).
+- Composer bottom-left `+` attach menu with labeled speed-dial pills: Photo, Camera, HTML file, File.
 - Message forward and delete actions.
 - Dev build-stamp messages (commit hash banners) hidden in release builds.
+- CI compile gates: `flutter build apk --debug` (Ubuntu) and `flutter build ios --no-codesign` (macOS) on the example app.
 
 ### Changed
 - Tipping moved from composer/per-bubble affordance to message context menu only.
@@ -15,12 +15,16 @@
 
 ### Removed
 - Inline `MessageTipAffordance` beside received bubbles.
+- Voice note recording from this release (deferred to a follow-up with `flutter_sound`).
 
 ### iOS (host app)
 Consuming apps must declare in `Info.plist`:
 - `NSCameraUsageDescription`
 - `NSPhotoLibraryUsageDescription`
-- `NSMicrophoneUsageDescription` (for voice notes)
+
+## 0.4.0
+
+(Superseded by 0.4.1 — voice notes removed before ship.)
 
 ## 0.3.0
 

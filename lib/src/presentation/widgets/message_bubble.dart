@@ -12,7 +12,6 @@ import '../theme/chat_theme.dart';
 import 'attachments/attachment_views.dart';
 import 'attachments/html_attachment_loader.dart';
 import 'attachments/pdf_attachment_loader.dart';
-import 'attachments/voice_note_attachment_view.dart';
 import 'profile_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -336,13 +335,6 @@ class MessageBubbleContent extends StatelessWidget {
   }) {
     if (attachment.kind == AttachmentKind.image) {
       return ImageAttachmentView(
-        attachment: attachment,
-        resolveUrl: resolveUrl,
-      );
-    }
-
-    if (attachment.kind == AttachmentKind.voiceNote) {
-      return VoiceNoteAttachmentView(
         attachment: attachment,
         resolveUrl: resolveUrl,
       );

@@ -12,6 +12,7 @@ import '../theme/chat_theme.dart';
 import 'attachments/attachment_views.dart';
 import 'attachments/html_attachment_loader.dart';
 import 'attachments/pdf_attachment_loader.dart';
+import 'payment_request_card.dart';
 import 'voice_note_attachment_view.dart';
 import 'profile_avatar.dart';
 
@@ -86,6 +87,7 @@ class MessageBubble extends StatelessWidget {
       resolveBytes: resolveBytes,
       onOpenContextMenu: onOpenContextMenu,
       bubbleKey: bubbleKey,
+      requesterName: profile.name,
     );
 
     if (previewOnly) {
@@ -211,6 +213,7 @@ class MessageBubbleContent extends StatelessWidget {
     required this.resolveBytes,
     this.bubbleKey,
     this.onOpenContextMenu,
+    this.requesterName,
   });
 
   final Message message;
@@ -223,6 +226,7 @@ class MessageBubbleContent extends StatelessWidget {
   final Future<List<int>> Function(String storagePath) resolveBytes;
   final GlobalKey? bubbleKey;
   final VoidCallback? onOpenContextMenu;
+  final String? requesterName;
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +282,19 @@ class MessageBubbleContent extends StatelessWidget {
                 ),
               ),
             ..._buildAttachmentContent(context),
-            if (message.body.isNotEmpty)
+            if (message.paymentRequest != null)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: message.body.isNotEmpty && !message.hasPaymentRequest
+                      ? 8
+                      : 0,
+                ),
+                child: PaymentRequestCard(
+                  paymentRequest: message.paymentRequest!,
+                  requesterName: requesterName ?? 'Unknown',
+                ),
+              ),
+            if (message.body.isNotEmpty && !message.hasPaymentRequest)
               Text(
                 message.body,
                 style: TextStyle(

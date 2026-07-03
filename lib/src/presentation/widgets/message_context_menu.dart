@@ -8,6 +8,7 @@ import '../../domain/models/message.dart';
 import '../../domain/models/reaction.dart';
 import '../../domain/models/tip_presets.dart';
 import '../theme/chat_theme.dart';
+import 'tip_presets_sheet.dart';
 
 const kQuickReactions = <String>['❤️', '😂', '👍', '‼️', '🙏'];
 
@@ -757,35 +758,9 @@ class _TipPresetsMenu extends StatelessWidget {
           Divider(height: 1, color: theme.dividerColor),
           for (var i = 0; i < TipPresets.amountCents.length; i++) ...[
             if (i > 0) Divider(height: 1, color: theme.dividerColor),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => onSelect(TipPresets.amountCents[i]),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.volunteer_activism_outlined,
-                        size: 20,
-                        color: theme.accentColor,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        TipPresets.formatAmount(TipPresets.amountCents[i]),
-                        style: TextStyle(
-                          color: theme.inkColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            TipPresetAmountRow(
+              amountCents: TipPresets.amountCents[i],
+              onTap: () => onSelect(TipPresets.amountCents[i]),
             ),
           ],
         ],

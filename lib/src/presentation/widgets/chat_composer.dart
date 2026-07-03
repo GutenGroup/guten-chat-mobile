@@ -24,6 +24,8 @@ class ChatComposer extends StatefulWidget {
     required this.onClearReply,
     this.brandMarks = const [],
     this.onToggleReaction,
+    this.onRequestPayment,
+    this.onSendTip,
   });
 
   final ValueChanged<String> onSend;
@@ -34,6 +36,8 @@ class ChatComposer extends StatefulWidget {
   final VoidCallback onClearReply;
   final List<BrandReactionMark> brandMarks;
   final void Function(String value, ReactionKind kind)? onToggleReaction;
+  final VoidCallback? onRequestPayment;
+  final VoidCallback? onSendTip;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -227,6 +231,61 @@ class _ChatComposerState extends State<ChatComposer> {
     );
   }
 
+  List<ExpandableMenuChoice> _buildMenuChoices() {
+    final choices = <ExpandableMenuChoice>[
+      ExpandableMenuChoice(
+        icon: Icons.mic_rounded,
+        label: 'Voice note',
+        onTap: _recordVoiceNote,
+      ),
+      ExpandableMenuChoice(
+        icon: Icons.image_rounded,
+        label: 'Photo',
+        onTap: _pickGallery,
+      ),
+      ExpandableMenuChoice(
+        icon: Icons.photo_camera_rounded,
+        label: 'Camera',
+        onTap: _pickCamera,
+      ),
+      ExpandableMenuChoice(
+        icon: Icons.html_rounded,
+        label: 'HTML file',
+        onTap: _pickHtmlFile,
+      ),
+      ExpandableMenuChoice(
+        icon: Icons.attach_file_rounded,
+        label: 'File',
+        onTap: _pickFile,
+      ),
+    ];
+
+    final hasPayment = widget.onRequestPayment != null;
+    final hasTip = widget.onSendTip != null;
+    if (hasPayment) {
+      choices.add(
+        ExpandableMenuChoice(
+          icon: Icons.request_page_outlined,
+          label: 'Request payment',
+          dividerBefore: true,
+          onTap: widget.onRequestPayment!,
+        ),
+      );
+    }
+    if (hasTip) {
+      choices.add(
+        ExpandableMenuChoice(
+          icon: Icons.volunteer_activism_outlined,
+          label: 'Send tip',
+          dividerBefore: !hasPayment,
+          onTap: widget.onSendTip!,
+        ),
+      );
+    }
+
+    return choices;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
@@ -281,33 +340,7 @@ class _ChatComposerState extends State<ChatComposer> {
                   children: [
                     ExpandableIconMenu(
                       triggerIcon: Icons.add_rounded,
-                      choices: [
-                        ExpandableMenuChoice(
-                          icon: Icons.mic_rounded,
-                          label: 'Voice note',
-                          onTap: _recordVoiceNote,
-                        ),
-                        ExpandableMenuChoice(
-                          icon: Icons.image_rounded,
-                          label: 'Photo',
-                          onTap: _pickGallery,
-                        ),
-                        ExpandableMenuChoice(
-                          icon: Icons.photo_camera_rounded,
-                          label: 'Camera',
-                          onTap: _pickCamera,
-                        ),
-                        ExpandableMenuChoice(
-                          icon: Icons.html_rounded,
-                          label: 'HTML file',
-                          onTap: _pickHtmlFile,
-                        ),
-                        ExpandableMenuChoice(
-                          icon: Icons.attach_file_rounded,
-                          label: 'File',
-                          onTap: _pickFile,
-                        ),
-                      ],
+                      choices: _buildMenuChoices(),
                     ),
                     const SizedBox(width: 4),
                     Expanded(

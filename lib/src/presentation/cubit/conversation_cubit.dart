@@ -421,6 +421,27 @@ class ConversationCubit extends Cubit<ConversationState> {
     }
   }
 
+  Future<void> createPaymentRequest({
+    required int amountCents,
+    required String currency,
+    String? note,
+  }) async {
+    if (!_features.paymentRequests || state.currentProfileId == null) {
+      return;
+    }
+
+    try {
+      await _repository.createPaymentRequest(
+        conversationId: _conversationId,
+        amountCents: amountCents,
+        currency: currency,
+        note: note,
+      );
+    } catch (error) {
+      emit(state.copyWith(error: error.toString()));
+    }
+  }
+
   Future<void> toggleReaction({
     required String messageId,
     required String value,

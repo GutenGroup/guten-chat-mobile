@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.4
+
+### Added
+- Composer **+ attach menu** is the single money action hub: **Request payment** and
+  **Send tip** entries (feature-gated via `paymentRequests` / `tipping`), separated
+  from attachments by a visual divider. No standalone composer money buttons.
+- **`PaymentRequestSheet`** — amount (USD, decimal keypad), optional note, Send request.
+- **`ConversationCubit.createPaymentRequest`** — calls existing repository RPC; request
+  lands in the thread as a message.
+- **Send tip from composer** — DM opens preset amounts (`$1` / `$3` / `$5` / `$10`);
+  group shows a member picker first (exclude self), then presets. Uses existing
+  `sendTip` path (no message anchor).
+- **`PaymentRequestCard`** inline bubble — bank icon, amount, requested-by, status
+  (Open / Paid / Canceled / Expired). Display + status only; paying stays on web.
+- Shared **`TipPresetsSheet`** / **`TipPresetAmountRow`** extracted for composer and
+  context-menu tip UI.
+
+### Unchanged
+- Message-context-menu **Tip** on received messages (unchanged).
+- Keyboard / scaffold discipline from 0.4.3 (`resizeToAvoidBottomInset`, composer
+  `Padding(viewInsets)`, `buildLabel`).
+
 ## 0.4.3
 
 ### Fixed

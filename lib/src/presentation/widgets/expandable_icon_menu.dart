@@ -43,11 +43,13 @@ class ExpandableMenuChoice {
     required this.icon,
     required this.onTap,
     this.label,
+    this.dividerBefore = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final String? label;
+  final bool dividerBefore;
 }
 
 class _ExpandableIconMenuState extends State<ExpandableIconMenu>
@@ -193,6 +195,55 @@ class _ExpandableMenuOverlay extends StatelessWidget {
   final VoidCallback onClose;
   final void Function(ExpandableMenuChoice choice) onChoiceTap;
 
+  static const _dividerPitch = 10.0;
+
+  List<Widget> _buildOverlayItems({
+    required BuildContext context,
+    required ChatTheme theme,
+    required double horizontal,
+  }) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final baseBottom = screenHeight -
+        triggerOffset.dy -
+        triggerSize.height +
+        baseOffset +
+        12;
+    final items = <Widget>[];
+    var slot = 0.0;
+
+    for (var i = 0; i < choices.length; i++) {
+      if (choices[i].dividerBefore) {
+        items.add(
+          _MenuDivider(
+            controller: controller,
+            index: i,
+            bottom: baseBottom + slot * pitch,
+            left: horizontal,
+            theme: theme,
+          ),
+        );
+        slot += _dividerPitch / pitch;
+      }
+
+      items.add(
+        _MenuPill(
+          controller: controller,
+          index: i,
+          bottom: baseBottom + slot * pitch,
+          left: horizontal,
+          size: pillSize,
+          icon: choices[i].icon,
+          label: choices[i].label,
+          theme: theme,
+          onTap: () => onChoiceTap(choices[i]),
+        ),
+      );
+      slot += 1;
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
@@ -210,24 +261,54 @@ class _ExpandableMenuOverlay extends StatelessWidget {
             child: const ColoredBox(color: Colors.transparent),
           ),
         ),
-        for (var i = 0; i < choices.length; i++)
-          _MenuPill(
-            controller: controller,
-            index: i,
-            bottom: MediaQuery.sizeOf(context).height -
-                triggerOffset.dy -
-                triggerSize.height +
-                baseOffset +
-                12 +
-                i * pitch,
-            left: horizontal,
-            size: pillSize,
-            icon: choices[i].icon,
-            label: choices[i].label,
-            theme: theme,
-            onTap: () => onChoiceTap(choices[i]),
-          ),
+        ..._buildOverlayItems(
+          context: context,
+          theme: theme,
+          horizontal: horizontal,
+        ),
       ],
+    );
+  }
+}
+
+class _MenuDivider extends StatelessWidget {
+  const _MenuDivider({
+    required this.controller,
+    required this.index,
+    required this.bottom,
+    required this.left,
+    required this.theme,
+  });
+
+  final AnimationController controller;
+  final int index;
+  final double bottom;
+  final double left;
+  final ChatTheme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = index * 0.15;
+    final end = (start + 0.6).clamp(0.0, 1.0);
+    final animation = CurvedAnimation(
+      parent: controller,
+      curve: Interval(start, end, curve: Curves.easeOut),
+    );
+
+    return Positioned(
+      left: left + 4,
+      bottom: bottom + 22,
+      child: FadeTransition(
+        opacity: animation,
+        child: Container(
+          width: 36,
+          height: 1,
+          decoration: BoxDecoration(
+            color: theme.dividerColor,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+      ),
     );
   }
 }

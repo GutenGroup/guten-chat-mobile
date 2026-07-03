@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/models/chat_features.dart';
+import '../../domain/models/tip_presets.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
 import '../theme/chat_theme.dart';
@@ -10,7 +11,10 @@ import 'chat_composer.dart';
 import 'conversation_header.dart';
 import 'groups/group_icon_picker.dart';
 import 'groups/manage_community_sheet.dart';
+import 'member_picker_sheet.dart';
 import 'message_list_view.dart';
+import 'payment_request_sheet.dart';
+import 'tip_presets_sheet.dart';
 
 class ConversationScreen extends StatelessWidget {
   const ConversationScreen({
@@ -84,11 +88,77 @@ class ConversationScreen extends StatelessWidget {
                 onTypingChanged: (isTyping) => context
                     .read<ConversationCubit>()
                     .notifyTyping(isTyping),
+                onRequestPayment: features.paymentRequests
+                    ? () => PaymentRequestSheet.show(
+                          context,
+                          cubit: context.read<ConversationCubit>(),
+                        )
+                    : null,
+                onSendTip: features.tipping
+                    ? () => _showComposerTip(context, state)
+                    : null,
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showComposerTip(
+    BuildContext context,
+    ConversationState state,
+  ) async {
+    final cubit = context.read<ConversationCubit>();
+    final currentProfileId = state.currentProfileId;
+    if (currentProfileId == null) {
+      return;
+    }
+
+    String? recipientProfileId;
+
+    if (state.isGroup) {
+      final others = state.participants
+          .where((p) => p.profileId != currentProfileId)
+          .toList();
+      if (others.isEmpty) {
+        return;
+      }
+      if (others.length == 1) {
+        recipientProfileId = others.first.profileId;
+      } else {
+        await MemberPickerSheet.show(
+          context,
+          participants: state.participants,
+          profiles: state.profiles,
+          currentProfileId: currentProfileId,
+          onSelect: (profileId) => recipientProfileId = profileId,
+        );
+        if (recipientProfileId == null || !context.mounted) {
+          return;
+        }
+      }
+    } else {
+      recipientProfileId = state.participants
+          .where((p) => p.profileId != currentProfileId)
+          .map((p) => p.profileId)
+          .firstOrNull;
+      if (recipientProfileId == null) {
+        return;
+      }
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    await TipPresetsSheet.show(
+      context,
+      onSelect: (amountCents) => cubit.sendTip(
+        recipientProfileId: recipientProfileId!,
+        amountCents: amountCents,
+        currency: TipPresets.currency,
+      ),
     );
   }
 

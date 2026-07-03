@@ -36,4 +36,41 @@ void main() {
     await tester.tap(find.byIcon(Icons.photo_camera_rounded));
     expect(tapped, isTrue);
   });
+
+  testWidgets('ExpandableIconMenu renders divider when dividerBefore set',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildGutenChatMaterialTheme(
+          chatTheme: const GutenChatTheme().toChatTheme(Brightness.dark),
+        ),
+        home: Scaffold(
+          body: Center(
+            child: ExpandableIconMenu(
+              choices: [
+                ExpandableMenuChoice(
+                  icon: Icons.attach_file_rounded,
+                  label: 'File',
+                  onTap: () {},
+                ),
+                ExpandableMenuChoice(
+                  icon: Icons.request_page_outlined,
+                  label: 'Request payment',
+                  dividerBefore: true,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(Container), findsWidgets);
+    expect(find.text('Request payment'), findsOneWidget);
+  });
 }

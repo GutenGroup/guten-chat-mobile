@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../utils/json_utils.dart';
 import 'message_attachment.dart';
+import 'payment_request.dart';
 import 'reaction.dart';
 
 enum MessageStatus {
@@ -28,6 +29,7 @@ class Message extends Equatable {
     this.clientTempId,
     this.attachments = const [],
     this.uploadProgress,
+    this.paymentRequest,
   });
 
   final String id;
@@ -45,8 +47,10 @@ class Message extends Equatable {
   final String? clientTempId;
   final List<MessageAttachment> attachments;
   final double? uploadProgress;
+  final PaymentRequest? paymentRequest;
 
   bool get hasAttachments => attachments.isNotEmpty;
+  bool get hasPaymentRequest => paymentRequest != null;
 
   bool get isOptimistic =>
       status == MessageStatus.sending || id.startsWith('temp-');
@@ -76,6 +80,21 @@ class Message extends Equatable {
         ) ??
         readJson<List<dynamic>>(json, 'attachments', 'attachments') ??
         [];
+
+    final paymentRequestJson = readJson<dynamic>(
+      json,
+      'chat_payment_requests',
+      'paymentRequest',
+    );
+    PaymentRequest? paymentRequest;
+    if (paymentRequestJson is Map<String, dynamic>) {
+      paymentRequest = PaymentRequest.fromJson(paymentRequestJson);
+    } else if (paymentRequestJson is List && paymentRequestJson.isNotEmpty) {
+      final first = paymentRequestJson.first;
+      if (first is Map<String, dynamic>) {
+        paymentRequest = PaymentRequest.fromJson(first);
+      }
+    }
 
     return Message(
       id: requireString(json, 'id', 'id'),
@@ -107,6 +126,7 @@ class Message extends Equatable {
           .whereType<Map<String, dynamic>>()
           .map(MessageAttachment.fromJson)
           .toList(),
+      paymentRequest: paymentRequest,
     );
   }
 
@@ -140,6 +160,7 @@ class Message extends Equatable {
     String? clientTempId,
     List<MessageAttachment>? attachments,
     double? uploadProgress,
+    PaymentRequest? paymentRequest,
     bool clearUploadProgress = false,
   }) {
     return Message(
@@ -159,6 +180,7 @@ class Message extends Equatable {
       attachments: attachments ?? this.attachments,
       uploadProgress:
           clearUploadProgress ? null : uploadProgress ?? this.uploadProgress,
+      paymentRequest: paymentRequest ?? this.paymentRequest,
     );
   }
 
@@ -179,6 +201,7 @@ class Message extends Equatable {
         clientTempId,
         attachments,
         uploadProgress,
+        paymentRequest,
       ];
 }
 

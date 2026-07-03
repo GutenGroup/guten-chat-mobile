@@ -22,7 +22,7 @@ class ChatRemoteDataSource {
 
   static const _attachmentsBucket = 'chat-attachments';
   static const _messageSelect =
-      '*, chat_message_reactions(*), chat_message_attachments(*)';
+      '*, chat_message_reactions(*), chat_message_attachments(*), chat_payment_requests(*)';
 
   Future<String> getCurrentProfileId() async {
     final response = await client.rpc('chat_current_profile_id');
@@ -496,7 +496,7 @@ class ConversationChannel {
                 final message = await client
                     .from('chat_messages')
                     .select(
-                      '*, chat_message_reactions(*), chat_message_attachments(*)',
+                      '*, chat_message_reactions(*), chat_message_attachments(*), chat_payment_requests(*)',
                     )
                     .eq('id', messageId)
                     .single();
@@ -541,6 +541,41 @@ class ConversationChannel {
           _controller.add(
             ReactionChanged(messageId: messageId, reactions: reactions),
           );
+        },
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'chat_payment_requests',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'conversation_id',
+          value: _conversationId,
+        ),
+        callback: (payload) async {
+          final record = payload.newRecord.isNotEmpty
+              ? payload.newRecord
+              : payload.oldRecord;
+          final messageId = record['message_id']?.toString();
+          if (messageId == null) {
+            return;
+          }
+          try {
+            final message = await client
+                .from('chat_messages')
+                .select(
+                  '*, chat_message_reactions(*), chat_message_attachments(*), chat_payment_requests(*)',
+                )
+                .eq('id', messageId)
+                .single();
+            _controller.add(
+              MessageUpdated(
+                Message.fromJson(Map<String, dynamic>.from(message)),
+              ),
+            );
+          } catch (_) {
+            // Ignore — message may not exist yet.
+          }
         },
       )
       ..onPostgresChanges(

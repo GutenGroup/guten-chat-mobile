@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+### Fixed
+- Pin `record` to `^6.1.2` so federated platform impls (especially `record_linux`) match `record_platform_interface` — fixes iOS kernel compile failure.
+- CI now runs `flutter build apk --debug` (Ubuntu) and `flutter build ios --simulator --no-codesign` (macOS) on the example app so compile breaks cannot merge green on analyze alone.
+- Example app scaffolded with iOS/Android/Linux platforms and required `Info.plist` usage strings.
+
 ## 0.4.0
 
 ### Added

@@ -1,8 +1,11 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../domain/models/message_attachment.dart';
 import '../../theme/chat_theme.dart';
-import 'dart:typed_data';
+import '../../utils/attachment_utils.dart';
 
 import 'fullscreen_html_viewer.dart';
 import 'fullscreen_image_viewer.dart';
@@ -28,6 +31,29 @@ class ImageAttachmentView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
 
+    if (isLocalAttachmentPath(attachment.storagePath)) {
+      return GestureDetector(
+        onTap: () => FullscreenImageViewer.show(
+          context,
+          imageUrl: attachment.storagePath,
+          title: attachment.displayName,
+          isLocalFile: true,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Image.file(
+              File(attachment.storagePath),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  _AttachmentError(theme: theme, label: 'Image unavailable'),
+            ),
+          ),
+        ),
+      );
+    }
+
     return FutureBuilder<String>(
       future: resolveUrl(attachment.storagePath),
       builder: (context, snapshot) {
@@ -46,10 +72,11 @@ class ImageAttachmentView extends StatelessWidget {
           return _AttachmentError(theme: theme, label: 'Image unavailable');
         }
 
+        final imageUrl = snapshot.data!;
         return GestureDetector(
           onTap: () => FullscreenImageViewer.show(
             context,
-            imageUrl: snapshot.data!,
+            imageUrl: imageUrl,
             title: attachment.displayName,
           ),
           child: ClipRRect(
@@ -57,25 +84,27 @@ class ImageAttachmentView extends StatelessWidget {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: maxHeight),
               child: Image.network(
-                snapshot.data!,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) {
-                    return child;
-                  }
-                  return SizedBox(
-                    height: 120,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: theme.accentColor,
-                        strokeWidth: 2,
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) {
+                          return child;
+                        }
+                        return SizedBox(
+                          height: 120,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: theme.accentColor,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => _AttachmentError(
+                        theme: theme,
+                        label: 'Image unavailable',
                       ),
                     ),
-                  );
-                },
-                errorBuilder: (_, __, ___) =>
-                    _AttachmentError(theme: theme, label: 'Image unavailable'),
-              ),
             ),
           ),
         );

@@ -211,6 +211,7 @@ class ChatRemoteDataSource {
     int? widthPx,
     int? heightPx,
     int? fileSizeBytes,
+    int? durationMs,
     String? clientTempId,
     void Function(double progress)? onProgress,
   }) async {
@@ -253,6 +254,7 @@ class ChatRemoteDataSource {
       'storage_path': storagePath,
       if (widthPx != null) 'width_px': widthPx,
       if (heightPx != null) 'height_px': heightPx,
+      if (durationMs != null) 'duration_ms': durationMs,
     });
 
     onProgress?.call(1);
@@ -270,6 +272,7 @@ class ChatRemoteDataSource {
             heightPx: heightPx,
             fileSizeBytes: fileSizeBytes ?? bytes.length,
             originalFileName: resolvedName,
+            durationMs: durationMs,
           ),
         ],
       );
@@ -307,8 +310,20 @@ class ChatRemoteDataSource {
       'webp' => 'image/webp',
       'html' || 'htm' => 'text/html',
       'pdf' => 'application/pdf',
+      'm4a' => 'audio/mp4',
       _ => 'application/octet-stream',
     };
+  }
+
+  Future<void> deleteMessage(String messageId) async {
+    try {
+      await client.rpc(
+        'chat_delete_message',
+        params: {'message_id': messageId},
+      );
+    } catch (_) {
+      await client.from('chat_messages').delete().eq('id', messageId);
+    }
   }
 
   Future<Message> sendMessage({

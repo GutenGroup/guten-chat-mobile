@@ -10,6 +10,7 @@ class AttachmentSendRequest {
     this.fileSizeBytes,
     this.widthPx,
     this.heightPx,
+    this.durationMs,
   });
 
   final String localPath;
@@ -19,4 +20,5 @@ class AttachmentSendRequest {
   final int? fileSizeBytes;
   final int? widthPx;
   final int? heightPx;
+  final int? durationMs;
 }

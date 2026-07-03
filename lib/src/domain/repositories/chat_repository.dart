@@ -109,6 +109,7 @@ abstract class ChatRepository {
     int? widthPx,
     int? heightPx,
     int? fileSizeBytes,
+    int? durationMs,
     String? clientTempId,
     void Function(double progress)? onProgress,
   });
@@ -116,6 +117,8 @@ abstract class ChatRepository {
   Future<String> createSignedAttachmentUrl(String storagePath);
 
   Future<List<int>> downloadAttachmentBytes(String storagePath);
+
+  Future<void> deleteMessage(String messageId);
 
   Future<List<Reaction>> toggleReaction({
     required String messageId,

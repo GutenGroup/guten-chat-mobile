@@ -315,6 +315,7 @@ class ConversationCubit extends Cubit<ConversationState> {
       heightPx: request.heightPx,
       fileSizeBytes: request.fileSizeBytes,
       originalFileName: request.fileName,
+      durationMs: request.durationMs,
     );
     final optimistic = createOptimisticMessage(
       tempId: tempId,
@@ -349,6 +350,7 @@ class ConversationCubit extends Cubit<ConversationState> {
         widthPx: request.widthPx,
         heightPx: request.heightPx,
         fileSizeBytes: request.fileSizeBytes,
+        durationMs: request.durationMs,
         clientTempId: tempId,
         onProgress: (progress) {
           final updated = optimistic.copyWith(uploadProgress: progress);
@@ -506,6 +508,32 @@ class ConversationCubit extends Cubit<ConversationState> {
       return;
     }
     emit(state.copyWith(replyToMessage: message, clearReply: message == null));
+  }
+
+  Future<void> forwardMessage(Message message) async {
+    final body = message.body.trim();
+    final forwarded = body.isNotEmpty
+        ? '↪ Forwarded:\n$body'
+        : '↪ Forwarded attachment';
+    await sendMessage(forwarded);
+  }
+
+  Future<void> deleteMessage(String messageId) async {
+    final snapshot = state.messages;
+    final messages =
+        state.messages.where((m) => m.id != messageId).toList();
+    emit(state.copyWith(messages: messages));
+
+    try {
+      await _repository.deleteMessage(messageId);
+    } catch (error) {
+      emit(
+        state.copyWith(
+          messages: snapshot,
+          error: error.toString(),
+        ),
+      );
+    }
   }
 
   void onScrollPosition({required bool isAtBottom}) {

@@ -78,5 +78,5 @@ jobs:
           flutter pub get
           cd example && flutter pub get
 
-      - name: Build example iOS simulator (compile gate)
-        run: cd example && flutter build ios --simulator --no-codesign
+      - name: Build example iOS (compile gate)
+        run: cd example && flutter build ios --no-codesign

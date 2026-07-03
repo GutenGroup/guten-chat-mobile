@@ -11,7 +11,6 @@ import '../models/attachment_send_request.dart';
 import '../theme/chat_theme.dart';
 import '../utils/attachment_utils.dart';
 import 'expandable_icon_menu.dart';
-import 'voice_recorder_sheet.dart';
 
 class ChatComposer extends StatefulWidget {
   const ChatComposer({
@@ -84,21 +83,6 @@ class _ChatComposerState extends State<ChatComposer> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
-  }
-
-  Future<void> _recordVoiceNote() async {
-    final result = await VoiceRecorderSheet.show(context);
-    if (result == null) {
-      return;
-    }
-    widget.onAttachment(
-      AttachmentSendRequest(
-        localPath: result.path,
-        kind: AttachmentKind.voiceNote,
-        fileName: 'voice_note.m4a',
-        durationMs: result.durationMs,
-      ),
-    );
   }
 
   Future<void> _pickCamera() async {
@@ -280,11 +264,6 @@ class _ChatComposerState extends State<ChatComposer> {
                     ExpandableIconMenu(
                       triggerIcon: Icons.add_rounded,
                       choices: [
-                        ExpandableMenuChoice(
-                          icon: Icons.mic_rounded,
-                          label: 'Voice note',
-                          onTap: _recordVoiceNote,
-                        ),
                         ExpandableMenuChoice(
                           icon: Icons.image_rounded,
                           label: 'Photo',

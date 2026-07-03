@@ -35,6 +35,7 @@ class GutenChat extends StatefulWidget {
     this.profileHandle = 'user',
     this.onUploadGroupIcon,
     this.onEditProfile,
+    this.buildLabel,
   });
 
   final SupabaseClient supabase;
@@ -55,6 +56,11 @@ class GutenChat extends StatefulWidget {
   final String profileHandle;
   final GroupIconUploadCallback? onUploadGroupIcon;
   final VoidCallback? onEditProfile;
+
+  /// Optional build stamp (e.g. "b16 · chat 0.4.3") rendered as a tiny
+  /// caption at the bottom of the Chats tab — mirrors the web app's version
+  /// footer so testers can tell exactly which build feedback refers to.
+  final String? buildLabel;
 
   @override
   State<GutenChat> createState() => _GutenChatState();
@@ -98,6 +104,9 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
   }
 
   void _closeConversation() {
+    // Drop the keyboard before the tree swap so the inbox + bar never mount
+    // mid-keyboard-dismiss (out-of-sync settle).
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _openConversationId = null);
   }
 
@@ -164,31 +173,43 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
           profileLookup: widget.profileLookup,
         )..load(),
         child: Scaffold(
-          body: IndexedStack(
-            index: _selectedTab.index,
-            children: [
-              const UpdatesScreen(),
-              ChatsScreen(
-                repository: _repository,
-                onConversationTap: (c) => _openConversation(c.id),
-                onCreateGroup: () => _showNewGroupSheet(),
-                onUploadGroupIcon: widget.onUploadGroupIcon,
-              ),
-              CommunitiesScreen(
-                repository: _repository,
-                onCommunityTap: (c) => _openConversation(c.id),
-                onCreateCommunity: () => _showNewGroupSheet(isPaid: true),
-                onUploadGroupIcon: widget.onUploadGroupIcon,
-              ),
-              ProfileScreen(
-                displayName: widget.profileDisplayName,
-                handle: widget.profileHandle,
-                avatarInitials: initials,
-                appearance: _appearance,
-                onAppearanceChanged: _onAppearanceChanged,
-                onEditProfile: widget.onEditProfile,
-              ),
-            ],
+          // WhatsApp standard (Daniel 2026-07-03): the tab bar is LOCKED to
+          // the physical screen bottom — the keyboard slides OVER it, it
+          // never floats up. The body pads itself by the keyboard inset
+          // instead, so list content (e.g. the Chats search field) stays
+          // visible while the bar holds still under the keyboard.
+          resizeToAvoidBottomInset: false,
+          body: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: IndexedStack(
+              index: _selectedTab.index,
+              children: [
+                const UpdatesScreen(),
+                ChatsScreen(
+                  repository: _repository,
+                  onConversationTap: (c) => _openConversation(c.id),
+                  onCreateGroup: () => _showNewGroupSheet(),
+                  onUploadGroupIcon: widget.onUploadGroupIcon,
+                  buildLabel: widget.buildLabel,
+                ),
+                CommunitiesScreen(
+                  repository: _repository,
+                  onCommunityTap: (c) => _openConversation(c.id),
+                  onCreateCommunity: () => _showNewGroupSheet(isPaid: true),
+                  onUploadGroupIcon: widget.onUploadGroupIcon,
+                ),
+                ProfileScreen(
+                  displayName: widget.profileDisplayName,
+                  handle: widget.profileHandle,
+                  avatarInitials: initials,
+                  appearance: _appearance,
+                  onAppearanceChanged: _onAppearanceChanged,
+                  onEditProfile: widget.onEditProfile,
+                ),
+              ],
+            ),
           ),
           bottomNavigationBar: LiquidGlassBottomBar(
             selected: _selectedTab,

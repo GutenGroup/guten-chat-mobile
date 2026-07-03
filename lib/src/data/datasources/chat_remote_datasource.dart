@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/models/conversation.dart';
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 import '../../domain/models/participant.dart';
 import '../../domain/models/payment_request.dart';
 import '../../domain/models/reaction.dart';
@@ -15,6 +19,10 @@ class ChatRemoteDataSource {
   ChatRemoteDataSource(this.client);
 
   final SupabaseClient client;
+
+  static const _attachmentsBucket = 'chat-attachments';
+  static const _messageSelect =
+      '*, chat_message_reactions(*), chat_message_attachments(*)';
 
   Future<String> getCurrentProfileId() async {
     final response = await client.rpc('chat_current_profile_id');
@@ -65,7 +73,7 @@ class ChatRemoteDataSource {
   }) async {
     var filter = client
         .from('chat_messages')
-        .select('*, chat_message_reactions(*)')
+        .select(_messageSelect)
         .eq('conversation_id', conversationId);
 
     if (before != null) {
@@ -175,6 +183,134 @@ class ChatRemoteDataSource {
     );
   }
 
+  Future<Message> _fetchMessage(String messageId) async {
+    final row = await client
+        .from('chat_messages')
+        .select(_messageSelect)
+        .eq('id', messageId)
+        .single();
+    return Message.fromJson(Map<String, dynamic>.from(row));
+  }
+
+  Future<String> createSignedAttachmentUrl(String storagePath) async {
+    return client.storage
+        .from(_attachmentsBucket)
+        .createSignedUrl(storagePath, 3600);
+  }
+
+  Future<List<int>> downloadAttachmentBytes(String storagePath) async {
+    return client.storage.from(_attachmentsBucket).download(storagePath);
+  }
+
+  Future<Message> sendAttachment({
+    required String conversationId,
+    required String localPath,
+    required AttachmentKind kind,
+    String? caption,
+    String? fileName,
+    int? widthPx,
+    int? heightPx,
+    int? fileSizeBytes,
+    String? clientTempId,
+    void Function(double progress)? onProgress,
+  }) async {
+    final file = File(localPath);
+    if (!await file.exists()) {
+      throw StateError('Attachment file not found');
+    }
+
+    final bytes = await file.readAsBytes();
+    final resolvedName = fileName ?? localPath.split('/').last;
+    final ext = _extensionFor(resolvedName, kind);
+    final storagePath = '$conversationId/${const Uuid().v4()}.$ext';
+    final contentType = _contentTypeFor(ext);
+
+    onProgress?.call(0.05);
+    await client.storage.from(_attachmentsBucket).uploadBinary(
+          storagePath,
+          Uint8List.fromList(bytes),
+          fileOptions: FileOptions(contentType: contentType, upsert: false),
+        );
+    onProgress?.call(0.65);
+
+    final trimmedCaption = caption?.trim();
+    final messageRow = await client
+        .from('chat_messages')
+        .insert({
+          'conversation_id': conversationId,
+          if (trimmedCaption != null && trimmedCaption.isNotEmpty)
+            'body_md': trimmedCaption,
+          if (clientTempId != null) 'client_temp_id': clientTempId,
+        })
+        .select()
+        .single();
+
+    final messageId = messageRow['id'].toString();
+
+    await client.from('chat_message_attachments').insert({
+      'message_id': messageId,
+      'kind': kind.toJson(),
+      'storage_path': storagePath,
+      if (widthPx != null) 'width_px': widthPx,
+      if (heightPx != null) 'height_px': heightPx,
+    });
+
+    onProgress?.call(1);
+
+    final message = await _fetchMessage(messageId);
+    if (message.attachments.isEmpty) {
+      return message.copyWith(
+        attachments: [
+          MessageAttachment(
+            id: 'local-$messageId',
+            messageId: messageId,
+            kind: kind,
+            storagePath: storagePath,
+            widthPx: widthPx,
+            heightPx: heightPx,
+            fileSizeBytes: fileSizeBytes ?? bytes.length,
+            originalFileName: resolvedName,
+          ),
+        ],
+      );
+    }
+
+    return message.copyWith(
+      attachments: message.attachments
+          .map(
+            (attachment) => attachment.copyWith(
+              fileSizeBytes: fileSizeBytes ?? bytes.length,
+              originalFileName: resolvedName,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  String _extensionFor(String fileName, AttachmentKind kind) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot > 0 && dot < fileName.length - 1) {
+      return fileName.substring(dot + 1).toLowerCase();
+    }
+    return switch (kind) {
+      AttachmentKind.image => 'jpg',
+      AttachmentKind.voiceNote => 'm4a',
+      AttachmentKind.file => 'bin',
+    };
+  }
+
+  String _contentTypeFor(String ext) {
+    return switch (ext) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      'html' || 'htm' => 'text/html',
+      'pdf' => 'application/pdf',
+      _ => 'application/octet-stream',
+    };
+  }
+
   Future<Message> sendMessage({
     required String conversationId,
     required String body,
@@ -202,7 +338,7 @@ class ChatRemoteDataSource {
     final messageId = response.toString();
     final row = await client
         .from('chat_messages')
-        .select('*, chat_message_reactions(*)')
+        .select(_messageSelect)
         .eq('id', messageId)
         .single();
     return Message.fromJson(Map<String, dynamic>.from(row));
@@ -333,10 +469,32 @@ class ConversationChannel {
           column: 'conversation_id',
           value: _conversationId,
         ),
-        callback: (payload) {
+        callback: (payload) async {
           final record = payload.newRecord;
           if (record.isEmpty) {
             return;
+          }
+          if (payload.eventType == PostgresChangeEvent.insert) {
+            final messageId = record['id']?.toString();
+            if (messageId != null) {
+              try {
+                final message = await client
+                    .from('chat_messages')
+                    .select(
+                      '*, chat_message_reactions(*), chat_message_attachments(*)',
+                    )
+                    .eq('id', messageId)
+                    .single();
+                _controller.add(
+                  MessageInserted(
+                    Message.fromJson(Map<String, dynamic>.from(message)),
+                  ),
+                );
+                return;
+              } catch (_) {
+                // Fall back to bare row below.
+              }
+            }
           }
           final message = Message.fromJson(Map<String, dynamic>.from(record));
           if (payload.eventType == PostgresChangeEvent.insert) {

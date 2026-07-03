@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/message.dart';
 import '../../domain/models/profile.dart';
+import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
 import '../theme/chat_theme.dart';
 import '../utils/message_list_builder.dart';
@@ -16,10 +17,12 @@ class MessageListView extends StatefulWidget {
   const MessageListView({
     super.key,
     required this.features,
+    required this.repository,
     this.brandMarks = const [],
   });
 
   final ChatFeatures features;
+  final ChatRepository repository;
   final List<BrandReactionMark> brandMarks;
 
   @override
@@ -154,6 +157,7 @@ class _MessageListViewState extends State<MessageListView> {
                       isGroup: state.isGroup,
                       seenCount: _seenCount(message, state),
                       brandMarks: widget.brandMarks,
+                      repository: widget.repository,
                       onReply: () => context
                           .read<ConversationCubit>()
                           .setReplyTo(message),
@@ -164,6 +168,16 @@ class _MessageListViewState extends State<MessageListView> {
                             value: value,
                             kind: kind,
                           ),
+                      onSendTip: widget.features.tipping && !isOwn
+                          ? (amount, currency) => context
+                              .read<ConversationCubit>()
+                              .sendTip(
+                                recipientProfileId: message.senderProfileId,
+                                amountCents: amount,
+                                currency: currency,
+                                messageId: message.id,
+                              )
+                          : null,
                     );
                   }
                   return const SizedBox.shrink();

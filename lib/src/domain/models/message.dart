@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../utils/json_utils.dart';
+import 'message_attachment.dart';
 import 'reaction.dart';
 
 enum MessageStatus {
@@ -25,6 +26,8 @@ class Message extends Equatable {
     this.readByProfileIds = const [],
     this.status = MessageStatus.sent,
     this.clientTempId,
+    this.attachments = const [],
+    this.uploadProgress,
   });
 
   final String id;
@@ -40,6 +43,10 @@ class Message extends Equatable {
   final List<String> readByProfileIds;
   final MessageStatus status;
   final String? clientTempId;
+  final List<MessageAttachment> attachments;
+  final double? uploadProgress;
+
+  bool get hasAttachments => attachments.isNotEmpty;
 
   bool get isOptimistic =>
       status == MessageStatus.sending || id.startsWith('temp-');
@@ -62,13 +69,23 @@ class Message extends Equatable {
         ) ??
         [];
 
+    final attachmentsJson = readJson<List<dynamic>>(
+          json,
+          'chat_message_attachments',
+          'attachments',
+        ) ??
+        readJson<List<dynamic>>(json, 'attachments', 'attachments') ??
+        [];
+
     return Message(
       id: requireString(json, 'id', 'id'),
       conversationId:
           requireString(json, 'conversation_id', 'conversationId'),
       senderProfileId:
           requireString(json, 'sender_profile_id', 'senderProfileId'),
-      body: readJson<String>(json, 'body', 'body') ?? '',
+      body: readJson<String>(json, 'body_md', 'bodyMd') ??
+          readJson<String>(json, 'body', 'body') ??
+          '',
       createdAt: parseTimestamp(
         readJson<dynamic>(json, 'created_at', 'createdAt'),
       ),
@@ -86,6 +103,10 @@ class Message extends Equatable {
           .map(Reaction.fromJson)
           .toList(),
       readByProfileIds: readBy.map((e) => e.toString()).toList(),
+      attachments: attachmentsJson
+          .whereType<Map<String, dynamic>>()
+          .map(MessageAttachment.fromJson)
+          .toList(),
     );
   }
 
@@ -117,6 +138,9 @@ class Message extends Equatable {
     List<String>? readByProfileIds,
     MessageStatus? status,
     String? clientTempId,
+    List<MessageAttachment>? attachments,
+    double? uploadProgress,
+    bool clearUploadProgress = false,
   }) {
     return Message(
       id: id ?? this.id,
@@ -132,6 +156,9 @@ class Message extends Equatable {
       readByProfileIds: readByProfileIds ?? this.readByProfileIds,
       status: status ?? this.status,
       clientTempId: clientTempId ?? this.clientTempId,
+      attachments: attachments ?? this.attachments,
+      uploadProgress:
+          clearUploadProgress ? null : uploadProgress ?? this.uploadProgress,
     );
   }
 
@@ -150,6 +177,8 @@ class Message extends Equatable {
         readByProfileIds,
         status,
         clientTempId,
+        attachments,
+        uploadProgress,
       ];
 }
 

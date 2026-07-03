@@ -1,16 +1,23 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 import '../../domain/models/reaction.dart';
+import '../models/attachment_send_request.dart';
 import '../theme/chat_theme.dart';
+import '../utils/attachment_utils.dart';
+import 'expandable_icon_menu.dart';
 
 class ChatComposer extends StatefulWidget {
   const ChatComposer({
     super.key,
     required this.onSend,
     required this.onTypingChanged,
+    required this.onAttachment,
     required this.features,
     required this.replyToMessage,
     required this.onClearReply,
@@ -20,6 +27,7 @@ class ChatComposer extends StatefulWidget {
 
   final ValueChanged<String> onSend;
   final ValueChanged<bool> onTypingChanged;
+  final ValueChanged<AttachmentSendRequest> onAttachment;
   final ChatFeatures features;
   final Message? replyToMessage;
   final VoidCallback onClearReply;
@@ -33,6 +41,7 @@ class ChatComposer extends StatefulWidget {
 class _ChatComposerState extends State<ChatComposer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+  final _imagePicker = ImagePicker();
   bool _isTyping = false;
 
   @override
@@ -74,6 +83,102 @@ class _ChatComposerState extends State<ChatComposer> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  Future<void> _pickCamera() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (photo == null) {
+        return;
+      }
+      await _emitImageAttachment(photo);
+    } on PlatformException catch (error) {
+      _showPermissionMessage(error.message ?? 'Camera permission denied');
+    } catch (error) {
+      _showPermissionMessage(error.toString());
+    }
+  }
+
+  Future<void> _pickGallery() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (photo == null) {
+        return;
+      }
+      await _emitImageAttachment(photo);
+    } on PlatformException catch (error) {
+      _showPermissionMessage(error.message ?? 'Photo library permission denied');
+    } catch (error) {
+      _showPermissionMessage(error.toString());
+    }
+  }
+
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(withData: false);
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+      final file = result.files.single;
+      final path = file.path;
+      if (path == null) {
+        return;
+      }
+      widget.onAttachment(
+        AttachmentSendRequest(
+          localPath: path,
+          kind: AttachmentKind.file,
+          caption: _controller.text.trim().isEmpty ? null : _controller.text,
+          fileName: file.name,
+          fileSizeBytes: file.size,
+        ),
+      );
+      _controller.clear();
+      if (_isTyping) {
+        _isTyping = false;
+        widget.onTypingChanged(false);
+      }
+    } on PlatformException catch (error) {
+      _showPermissionMessage(error.message ?? 'Could not pick file');
+    } catch (error) {
+      _showPermissionMessage(error.toString());
+    }
+  }
+
+  Future<void> _emitImageAttachment(XFile photo) async {
+    final bytes = await photo.readAsBytes();
+    final dimensions = await readImageDimensions(bytes);
+    widget.onAttachment(
+      AttachmentSendRequest(
+        localPath: photo.path,
+        kind: AttachmentKind.image,
+        caption: _controller.text.trim().isEmpty ? null : _controller.text,
+        fileName: photo.name,
+        fileSizeBytes: bytes.length,
+        widthPx: dimensions?.$1,
+        heightPx: dimensions?.$2,
+      ),
+    );
+    _controller.clear();
+    if (_isTyping) {
+      _isTyping = false;
+      widget.onTypingChanged(false);
+    }
+  }
+
+  void _showPermissionMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -122,10 +227,27 @@ class _ChatComposerState extends State<ChatComposer> {
                   ),
                 ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    ExpandableIconMenu(
+                      choices: [
+                        ExpandableMenuChoice(
+                          icon: Icons.photo_camera_rounded,
+                          onTap: _pickCamera,
+                        ),
+                        ExpandableMenuChoice(
+                          icon: Icons.image_rounded,
+                          onTap: _pickGallery,
+                        ),
+                        ExpandableMenuChoice(
+                          icon: Icons.attach_file_rounded,
+                          onTap: _pickFile,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Focus(
                         onKeyEvent: _handleKey,

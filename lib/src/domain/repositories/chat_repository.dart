@@ -1,5 +1,6 @@
 import '../models/conversation.dart';
 import '../models/message.dart';
+import '../models/message_attachment.dart';
 import '../models/participant.dart';
 import '../models/payment_request.dart';
 import '../models/reaction.dart';
@@ -98,6 +99,23 @@ abstract class ChatRepository {
     String? replyToMessageId,
     String? clientTempId,
   });
+
+  Future<Message> sendAttachment({
+    required String conversationId,
+    required String localPath,
+    required AttachmentKind kind,
+    String? caption,
+    String? fileName,
+    int? widthPx,
+    int? heightPx,
+    int? fileSizeBytes,
+    String? clientTempId,
+    void Function(double progress)? onProgress,
+  });
+
+  Future<String> createSignedAttachmentUrl(String storagePath);
+
+  Future<List<int>> downloadAttachmentBytes(String storagePath);
 
   Future<List<Reaction>> toggleReaction({
     required String messageId,

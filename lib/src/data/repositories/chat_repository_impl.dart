@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../domain/models/conversation.dart';
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 import '../../domain/models/participant.dart';
 import '../../domain/models/payment_request.dart';
 import '../../domain/models/reaction.dart';
@@ -101,6 +102,40 @@ class ChatRepositoryImpl implements ChatRepository {
         replyToMessageId: replyToMessageId,
         clientTempId: clientTempId,
       );
+
+  @override
+  Future<Message> sendAttachment({
+    required String conversationId,
+    required String localPath,
+    required AttachmentKind kind,
+    String? caption,
+    String? fileName,
+    int? widthPx,
+    int? heightPx,
+    int? fileSizeBytes,
+    String? clientTempId,
+    void Function(double progress)? onProgress,
+  }) =>
+      _remote.sendAttachment(
+        conversationId: conversationId,
+        localPath: localPath,
+        kind: kind,
+        caption: caption,
+        fileName: fileName,
+        widthPx: widthPx,
+        heightPx: heightPx,
+        fileSizeBytes: fileSizeBytes,
+        clientTempId: clientTempId,
+        onProgress: onProgress,
+      );
+
+  @override
+  Future<String> createSignedAttachmentUrl(String storagePath) =>
+      _remote.createSignedAttachmentUrl(storagePath);
+
+  @override
+  Future<List<int>> downloadAttachmentBytes(String storagePath) =>
+      _remote.downloadAttachmentBytes(storagePath);
 
   @override
   Future<List<Reaction>> toggleReaction({

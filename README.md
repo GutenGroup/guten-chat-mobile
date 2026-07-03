@@ -17,3 +17,12 @@ the web shows up in the app and vice-versa. Web and Mobile are two skins over
 analyze`, `flutter test`). See [`BUILD_SPEC.md`](./BUILD_SPEC.md) — the single
 source of truth for what to build, the feature parity with the web version, the
 Supabase schema it targets, the Cowbolt UI seed, and how each app consumes it.
+
+## iOS permissions (host app)
+
+When using camera/gallery attachments, the consuming app must add to `Info.plist`:
+
+- `NSCameraUsageDescription` — in-app photo capture
+- `NSPhotoLibraryUsageDescription` — gallery picks
+
+The package handles permission-denied errors gracefully (SnackBar, no crash).

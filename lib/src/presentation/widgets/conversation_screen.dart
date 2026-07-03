@@ -59,6 +59,7 @@ class ConversationScreen extends StatelessWidget {
                 child: MessageListView(
                   features: features,
                   brandMarks: brandMarks,
+                  repository: repository,
                 ),
               ),
               ChatComposer(
@@ -69,6 +70,9 @@ class ConversationScreen extends StatelessWidget {
                     context.read<ConversationCubit>().setReplyTo(null),
                 onSend: (text) =>
                     context.read<ConversationCubit>().sendMessage(text),
+                onAttachment: (request) => context
+                    .read<ConversationCubit>()
+                    .sendAttachment(request),
                 onTypingChanged: (isTyping) => context
                     .read<ConversationCubit>()
                     .notifyTyping(isTyping),

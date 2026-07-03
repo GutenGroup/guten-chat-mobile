@@ -4,9 +4,14 @@ import 'package:intl/intl.dart';
 
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/models/reaction.dart';
+import '../../domain/repositories/chat_repository.dart';
 import '../theme/chat_theme.dart';
+import 'attachments/attachment_views.dart';
+import 'attachments/html_attachment_loader.dart';
+import 'message_tip_button.dart';
 import 'profile_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -23,6 +28,8 @@ class MessageBubble extends StatelessWidget {
     required this.onReply,
     required this.onToggleReaction,
     required this.brandMarks,
+    required this.repository,
+    this.onSendTip,
   });
 
   final Message message;
@@ -36,6 +43,8 @@ class MessageBubble extends StatelessWidget {
   final VoidCallback onReply;
   final void Function(String value, ReactionKind kind) onToggleReaction;
   final List<BrandReactionMark> brandMarks;
+  final ChatRepository repository;
+  final void Function(int amountCents, String currency)? onSendTip;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +63,14 @@ class MessageBubble extends StatelessWidget {
       message.reactions,
       isOwn ? message.senderProfileId : '',
     );
+    final showTipAffordance =
+        features.tipping && !isOwn && onSendTip != null && !message.isSystem;
+
+    Future<String> resolveUrl(String storagePath) =>
+        repository.createSignedAttachmentUrl(storagePath);
+
+    Future<List<int>> resolveBytes(String storagePath) =>
+        repository.downloadAttachmentBytes(storagePath);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -73,6 +90,11 @@ class MessageBubble extends StatelessWidget {
             )
           else if (!isOwn)
             const SizedBox(width: 36),
+          if (showTipAffordance)
+            MessageTipAffordance(
+              onTipSelected: (amount, currency) =>
+                  onSendTip!(amount, currency),
+            ),
           Flexible(
             child: Column(
               crossAxisAlignment:
@@ -139,14 +161,32 @@ class MessageBubble extends StatelessWidget {
                               ),
                             ),
                           ),
-                        Text(
-                          message.body,
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 15,
-                            height: 1.35,
-                          ),
+                        ..._buildAttachmentContent(
+                          context: context,
+                          resolveUrl: resolveUrl,
+                          resolveBytes: resolveBytes,
                         ),
+                        if (message.body.isNotEmpty)
+                          Text(
+                            message.body,
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 15,
+                              height: 1.35,
+                            ),
+                          ),
+                        if (message.uploadProgress != null &&
+                            message.status == MessageStatus.sending)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: LinearProgressIndicator(
+                              value: message.uploadProgress,
+                              minHeight: 3,
+                              color: theme.accentColor,
+                              backgroundColor:
+                                  theme.dividerColor.withValues(alpha: 0.4),
+                            ),
+                          ),
                         if (message.isFailed)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -228,6 +268,61 @@ class MessageBubble extends StatelessWidget {
             .map((mark) => mark.emojiFallback)
             .firstOrNull ??
         '★';
+  }
+
+  List<Widget> _buildAttachmentContent({
+    required BuildContext context,
+    required Future<String> Function(String storagePath) resolveUrl,
+    required Future<List<int>> Function(String storagePath) resolveBytes,
+  }) {
+    if (!message.hasAttachments) {
+      return const [];
+    }
+
+    return [
+      for (final attachment in message.attachments) ...[
+        Padding(
+          padding: EdgeInsets.only(bottom: message.body.isNotEmpty ? 8 : 0),
+          child: _buildAttachment(
+            context: context,
+            attachment: attachment,
+            resolveUrl: resolveUrl,
+            resolveBytes: resolveBytes,
+          ),
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildAttachment({
+    required BuildContext context,
+    required MessageAttachment attachment,
+    required Future<String> Function(String storagePath) resolveUrl,
+    required Future<List<int>> Function(String storagePath) resolveBytes,
+  }) {
+    if (attachment.kind == AttachmentKind.image) {
+      return ImageAttachmentView(
+        attachment: attachment,
+        resolveUrl: resolveUrl,
+      );
+    }
+
+    if (attachment.isHtml) {
+      return HtmlAttachmentLoader(
+        attachment: attachment,
+        resolveBytes: resolveBytes,
+      );
+    }
+
+    return FileAttachmentChip(
+      attachment: attachment,
+      onTap: () => openAttachment(
+        context: context,
+        attachment: attachment,
+        resolveBytes: resolveBytes,
+        resolveUrl: resolveUrl,
+      ),
+    );
   }
 }
 

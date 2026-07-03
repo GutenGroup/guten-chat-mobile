@@ -28,11 +28,11 @@ class ProfileAvatar extends StatelessWidget {
     final initial = profile.name.isNotEmpty ? profile.name[0].toUpperCase() : '?';
     return CircleAvatar(
       radius: radius,
-      backgroundColor: theme.primaryColor.withValues(alpha: 0.15),
+      backgroundColor: theme.surfaceColor,
       child: Text(
         initial,
         style: TextStyle(
-          color: theme.primaryColor,
+          color: theme.inkColor,
           fontWeight: FontWeight.w600,
         ),
       ),

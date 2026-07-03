@@ -40,9 +40,15 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
-    final bubbleColor =
-        isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor;
-    final textColor = isOwn ? theme.sentTextColor : theme.receivedTextColor;
+    final isEmphasized = message.reactions.any(
+      (r) => r.kind == ReactionKind.brand,
+    );
+    final bubbleColor = isEmphasized
+        ? theme.accentColor
+        : (isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor);
+    final textColor = isEmphasized
+        ? (theme.isDark ? Colors.black : Colors.white)
+        : (isOwn ? theme.sentTextColor : theme.receivedTextColor);
     final time = DateFormat.jm().format(message.createdAt.toLocal());
     final summaries = summarizeReactions(
       message.reactions,
@@ -169,8 +175,8 @@ class MessageBubble extends StatelessWidget {
                             '${_reactionLabel(summary, brandMarks)} ${summary.count}',
                           ),
                           backgroundColor: summary.includesMe
-                              ? theme.primaryColor.withValues(alpha: 0.12)
-                              : theme.dividerColor,
+                              ? theme.accentColor.withValues(alpha: 0.12)
+                              : theme.surfaceColor,
                           onPressed: () => onToggleReaction(
                             summary.value,
                             summary.kind,
@@ -256,7 +262,7 @@ class _ReadReceiptIcon extends StatelessWidget {
     return Icon(
       seenCount > 0 ? Icons.done_all : Icons.check,
       size: 14,
-      color: seenCount > 0 ? theme.primaryColor : theme.subtleTextColor,
+      color: seenCount > 0 ? theme.accentColor : theme.subtleTextColor,
     );
   }
 }

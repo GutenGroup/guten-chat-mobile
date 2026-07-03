@@ -422,6 +422,20 @@ class ConversationCubit extends Cubit<ConversationState> {
     }
   }
 
+  /// Per-chat mute — local optimistic update until host wires persistence.
+  void toggleMute(bool muted) {
+    final profileId = state.currentProfileId;
+    if (profileId == null) {
+      return;
+    }
+    final participants = state.participants
+        .map(
+          (p) => p.profileId == profileId ? p.copyWith(isMuted: muted) : p,
+        )
+        .toList();
+    emit(state.copyWith(participants: participants));
+  }
+
   Future<ChatProfile> _safeLookup(String profileId) async {
     try {
       return await _profileLookup(profileId);

@@ -15,4 +15,7 @@ export 'src/domain/models/reaction.dart';
 export 'src/domain/models/tip.dart';
 export 'src/domain/repositories/chat_repository.dart';
 export 'src/presentation/theme/chat_theme.dart';
+export 'src/presentation/widgets/groups/group_icon_mark.dart';
+export 'src/presentation/widgets/groups/group_icon_picker.dart';
 export 'src/presentation/widgets/guten_chat.dart';
+export 'src/presentation/widgets/shell/liquid_glass_bottom_bar.dart';

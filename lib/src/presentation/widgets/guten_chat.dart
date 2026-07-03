@@ -10,8 +10,14 @@ import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
 import '../cubit/inbox_cubit.dart';
 import '../theme/chat_theme.dart';
+import 'chats/chats_screen.dart';
+import 'communities/communities_screen.dart';
 import 'conversation_screen.dart';
-import 'inbox_screen.dart';
+import 'groups/group_icon_picker.dart';
+import 'groups/new_group_sheet.dart';
+import 'profile/profile_screen.dart';
+import 'shell/liquid_glass_bottom_bar.dart';
+import 'updates/updates_screen.dart';
 
 /// Single public entrypoint widget for host apps.
 class GutenChat extends StatefulWidget {
@@ -20,17 +26,23 @@ class GutenChat extends StatefulWidget {
     required this.supabase,
     required this.profileLookup,
     this.features = const ChatFeatures(),
-    this.theme,
+    this.theme = const GutenChatTheme(),
     this.brandMarks = const [],
     this.initialConversationId,
+    this.initialTab = GutenChatTab.chats,
     this.repository,
+    this.profileDisplayName = 'You',
+    this.profileHandle = 'user',
+    this.onUploadGroupIcon,
+    this.onEditProfile,
   });
 
   final SupabaseClient supabase;
   final ProfileLookup profileLookup;
   final ChatFeatures features;
-  final ChatTheme? theme;
+  final GutenChatTheme theme;
   final List<BrandReactionMark> brandMarks;
+  final GutenChatTab initialTab;
 
   /// When set, opens directly into a conversation thread.
   final String? initialConversationId;
@@ -38,28 +50,47 @@ class GutenChat extends StatefulWidget {
   /// Optional override for tests.
   final ChatRepository? repository;
 
+  /// Profile tab display metadata supplied by the host app.
+  final String profileDisplayName;
+  final String profileHandle;
+  final GroupIconUploadCallback? onUploadGroupIcon;
+  final VoidCallback? onEditProfile;
+
   @override
   State<GutenChat> createState() => _GutenChatState();
 }
 
-class _GutenChatState extends State<GutenChat> {
+class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
   late final ChatRepository _repository;
   late final ChatFeatures _features;
+  late GutenChatAppearance _appearance;
+  late GutenChatTab _selectedTab;
   String? _openConversationId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _features = resolveFeatures(widget.features);
     _repository = widget.repository ??
         ChatRepositoryImpl(ChatRemoteDataSource(widget.supabase));
     _openConversationId = widget.initialConversationId;
+    _appearance = widget.theme.appearance;
+    _selectedTab = widget.initialTab;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _repository.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (_appearance == GutenChatAppearance.system) {
+      setState(() {});
+    }
   }
 
   void _openConversation(String conversationId) {
@@ -70,18 +101,39 @@ class _GutenChatState extends State<GutenChat> {
     setState(() => _openConversationId = null);
   }
 
+  void _onAppearanceChanged(GutenChatAppearance appearance) {
+    setState(() => _appearance = appearance);
+  }
+
+  GutenChatTheme get _resolvedTheme =>
+      widget.theme.copyWith(appearance: _appearance);
+
+  Widget _wrapWithTheme({required Widget child}) {
+    final brightness = _resolvedTheme.resolveBrightness(
+      MediaQuery.platformBrightnessOf(context),
+    );
+    final chatTheme = _resolvedTheme.toChatTheme(brightness);
+
+    return Theme(
+      data: buildGutenChatMaterialTheme(chatTheme: chatTheme),
+      child: child,
+    );
+  }
+
+  void _showNewGroupSheet({bool isPaid = false}) {
+    NewGroupSheet.show(
+      context,
+      repository: _repository,
+      isPaid: isPaid,
+      onUploadIcon: widget.onUploadGroupIcon,
+      onCreated: _openConversation,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chatTheme = widget.theme ?? const ChatTheme();
-
     if (_openConversationId != null) {
-      return Theme(
-        data: Theme.of(context).copyWith(
-          extensions: [chatTheme],
-          colorScheme: Theme.of(context).colorScheme.copyWith(
-                primary: chatTheme.primaryColor,
-              ),
-        ),
+      return _wrapWithTheme(
         child: BlocProvider(
           create: (_) => ConversationCubit(
             conversationId: _openConversationId!,
@@ -89,34 +141,59 @@ class _GutenChatState extends State<GutenChat> {
             profileLookup: widget.profileLookup,
             features: _features,
           )..load(),
-        child: ConversationScreen(
-          conversationId: _openConversationId!,
-          features: _features,
-          brandMarks: widget.brandMarks,
-          title: null,
-          onBack: _closeConversation,
-        ),
+          child: ConversationScreen(
+            conversationId: _openConversationId!,
+            features: _features,
+            brandMarks: widget.brandMarks,
+            repository: _repository,
+            onBack: _closeConversation,
+            onUploadGroupIcon: widget.onUploadGroupIcon,
+          ),
         ),
       );
     }
 
-    return Theme(
-      data: Theme.of(context).copyWith(
-        extensions: [chatTheme],
-        colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: chatTheme.primaryColor,
-            ),
-      ),
+    final initials = widget.profileDisplayName.isNotEmpty
+        ? widget.profileDisplayName[0].toUpperCase()
+        : '?';
+
+    return _wrapWithTheme(
       child: BlocProvider(
         create: (_) => InboxCubit(
           repository: _repository,
           profileLookup: widget.profileLookup,
         )..load(),
         child: Scaffold(
-          appBar: AppBar(title: const Text('Messages')),
-          body: InboxScreen(
-            onConversationTap: (conversation) =>
-                _openConversation(conversation.id),
+          body: IndexedStack(
+            index: _selectedTab.index,
+            children: [
+              const UpdatesScreen(),
+              ChatsScreen(
+                repository: _repository,
+                onConversationTap: (c) => _openConversation(c.id),
+                onCreateGroup: () => _showNewGroupSheet(),
+                onUploadGroupIcon: widget.onUploadGroupIcon,
+              ),
+              CommunitiesScreen(
+                repository: _repository,
+                onCommunityTap: (c) => _openConversation(c.id),
+                onCreateCommunity: () => _showNewGroupSheet(isPaid: true),
+                onUploadGroupIcon: widget.onUploadGroupIcon,
+              ),
+              ProfileScreen(
+                displayName: widget.profileDisplayName,
+                handle: widget.profileHandle,
+                avatarInitials: initials,
+                appearance: _appearance,
+                onAppearanceChanged: _onAppearanceChanged,
+                onEditProfile: widget.onEditProfile,
+              ),
+            ],
+          ),
+          bottomNavigationBar: LiquidGlassBottomBar(
+            selected: _selectedTab,
+            profileInitials: initials,
+            onSelected: (tab) => setState(() => _selectedTab = tab),
           ),
         ),
       ),
@@ -132,35 +209,35 @@ class GutenChatConversationRoute extends StatelessWidget {
     required this.profileLookup,
     required this.conversationId,
     this.features = const ChatFeatures(),
-    this.theme,
+    this.theme = const GutenChatTheme(),
     this.brandMarks = const [],
     this.repository,
     this.title,
+    this.onUploadGroupIcon,
   });
 
   final SupabaseClient supabase;
   final ProfileLookup profileLookup;
   final String conversationId;
   final ChatFeatures features;
-  final ChatTheme? theme;
+  final GutenChatTheme theme;
   final List<BrandReactionMark> brandMarks;
   final ChatRepository? repository;
   final String? title;
+  final GroupIconUploadCallback? onUploadGroupIcon;
 
   @override
   Widget build(BuildContext context) {
     final resolvedFeatures = resolveFeatures(features);
-    final chatTheme = theme ?? const ChatTheme();
     final chatRepository = repository ??
         ChatRepositoryImpl(ChatRemoteDataSource(supabase));
+    final brightness = theme.resolveBrightness(
+      MediaQuery.platformBrightnessOf(context),
+    );
+    final chatTheme = theme.toChatTheme(brightness);
 
     return Theme(
-      data: Theme.of(context).copyWith(
-        extensions: [chatTheme],
-        colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: chatTheme.primaryColor,
-            ),
-      ),
+      data: buildGutenChatMaterialTheme(chatTheme: chatTheme),
       child: BlocProvider(
         create: (_) => ConversationCubit(
           conversationId: conversationId,
@@ -172,7 +249,9 @@ class GutenChatConversationRoute extends StatelessWidget {
           conversationId: conversationId,
           features: resolvedFeatures,
           brandMarks: brandMarks,
+          repository: chatRepository,
           title: title,
+          onUploadGroupIcon: onUploadGroupIcon,
         ),
       ),
     );

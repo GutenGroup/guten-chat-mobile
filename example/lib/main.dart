@@ -28,12 +28,17 @@ class ExampleApp extends StatelessWidget {
     return MaterialApp(
       title: 'Guten Chat Example',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
         useMaterial3: true,
       ),
       home: GutenChat(
         supabase: Supabase.instance.client,
         profileLookup: _profileLookup,
+        theme: const GutenChatTheme(
+          // Fysigo teal — host apps inject their own accent token.
+          accentColor: Color(0xFF04AA72),
+        ),
         features: ChatFeatures.resolve(
           reactions: true,
           brandReactions: true,
@@ -48,6 +53,8 @@ class ExampleApp extends StatelessWidget {
             emojiFallback: '⚡',
           ),
         ],
+        profileDisplayName: 'Daniel Ekström',
+        profileHandle: 'daniel',
       ),
     );
   }

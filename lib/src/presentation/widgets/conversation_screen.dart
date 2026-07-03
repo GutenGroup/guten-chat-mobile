@@ -44,6 +44,14 @@ class ConversationScreen extends StatelessWidget {
             !isGroup;
 
         return Scaffold(
+          // The composer is the single, explicit owner of the keyboard inset
+          // (it pads itself by viewInsets — see ChatComposer.build). With the
+          // default resize, the Scaffold would strip viewInsets from the body
+          // and silently own the inset instead; that inert second layer goes
+          // double the moment a host nests this under another resizing
+          // ancestor. Explicit false = one owner, composer flush on the
+          // keyboard, always (WhatsApp standard, Daniel 2026-07-03).
+          resizeToAvoidBottomInset: false,
           appBar: ConversationHeader(
             title: resolvedTitle,
             conversation: state.conversation,

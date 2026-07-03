@@ -17,12 +17,18 @@ class ChatsScreen extends StatelessWidget {
     required this.repository,
     this.onCreateGroup,
     this.onUploadGroupIcon,
+    this.buildLabel,
   });
 
   final ValueChanged<Conversation> onConversationTap;
   final ChatRepository repository;
   final VoidCallback? onCreateGroup;
   final GroupIconUploadCallback? onUploadGroupIcon;
+
+  /// Optional build stamp rendered as a tiny caption under the list — lets
+  /// testers tell exactly which build feedback refers to (mirrors the web
+  /// app's version footer).
+  final String? buildLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +129,21 @@ class ChatsScreen extends StatelessWidget {
                       );
                     },
                     childCount: chats.length,
+                  ),
+                ),
+              if (buildLabel != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: Text(
+                        buildLabel!,
+                        style: TextStyle(
+                          color: theme.subtleTextColor.withValues(alpha: 0.6),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
             ],

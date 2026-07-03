@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.3
+
+### Fixed
+- **Keyboard discipline (WhatsApp standard).** The bottom tab bar is locked to
+  the physical screen bottom — the keyboard slides over it, it never floats up
+  (home Scaffold `resizeToAvoidBottomInset: false`; the body pads itself by the
+  keyboard inset so the Chats search stays visible). The thread screen makes
+  the composer the single, explicit owner of the keyboard inset
+  (`resizeToAvoidBottomInset: false` + plain `Padding(viewInsets)` — the old
+  150 ms `AnimatedPadding` tween lagged the iOS keyboard curve and could go
+  double under a resizing host ancestor). Closing a thread unfocuses first so
+  the inbox never mounts mid-keyboard-dismiss.
+
+### Added
+- `GutenChat.buildLabel` — optional build stamp (e.g. `b16 · chat 0.4.3`)
+  rendered as a tiny caption under the Chats list, mirroring the web app's
+  version footer, so testers can tell exactly which build feedback refers to.
+
 ## 0.4.2
 
 ### Added

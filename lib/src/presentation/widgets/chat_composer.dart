@@ -230,11 +230,13 @@ class _ChatComposerState extends State<ChatComposer> {
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
+    // Single owner of the keyboard inset (the thread Scaffold sets
+    // resizeToAvoidBottomInset: false). Plain Padding, not AnimatedPadding:
+    // iOS delivers viewInsets already animated on the exact keyboard curve,
+    // so any extra tween lags the keyboard and un-glues the composer.
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
+    return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: SafeArea(
         top: false,

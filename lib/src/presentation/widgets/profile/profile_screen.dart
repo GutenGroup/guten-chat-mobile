@@ -226,17 +226,16 @@ class _AppearanceTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: GutenChatAppearance.values.map((mode) {
-            return RadioListTile<GutenChatAppearance>(
-              title: Text(_label(mode),
-                  style: TextStyle(color: theme.inkColor)),
-              value: mode,
-              groupValue: current,
-              activeColor: theme.accentColor,
-              onChanged: (value) {
-                if (value != null) {
-                  Navigator.pop(context, value);
-                }
-              },
+            final isSelected = mode == current;
+            return ListTile(
+              title: Text(
+                _label(mode),
+                style: TextStyle(color: theme.inkColor),
+              ),
+              trailing: isSelected
+                  ? Icon(Icons.check, color: theme.accentColor)
+                  : null,
+              onTap: () => Navigator.pop(context, mode),
             );
           }).toList(),
         ),

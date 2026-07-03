@@ -1,9 +1,15 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/models/chat_features.dart';
+import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
+import '../theme/chat_theme.dart';
 import 'chat_composer.dart';
+import 'conversation_header.dart';
+import 'groups/group_icon_picker.dart';
+import 'groups/manage_community_sheet.dart';
 import 'message_list_view.dart';
 
 class ConversationScreen extends StatelessWidget {
@@ -11,16 +17,20 @@ class ConversationScreen extends StatelessWidget {
     super.key,
     required this.conversationId,
     required this.features,
+    required this.repository,
     this.brandMarks = const [],
     this.title,
     this.onBack,
+    this.onUploadGroupIcon,
   });
 
   final String conversationId;
   final ChatFeatures features;
+  final ChatRepository repository;
   final List<BrandReactionMark> brandMarks;
   final String? title;
   final VoidCallback? onBack;
+  final GroupIconUploadCallback? onUploadGroupIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -28,25 +38,20 @@ class ConversationScreen extends StatelessWidget {
       builder: (context, state) {
         final resolvedTitle =
             title ?? state.conversation?.title ?? 'Conversation';
+        final isGroup = state.isGroup;
+        final isOnline = features.presence &&
+            state.onlineProfileIds.isNotEmpty &&
+            !isGroup;
 
         return Scaffold(
-          appBar: AppBar(
-            leading: onBack != null
-                ? BackButton(onPressed: onBack)
-                : null,
-            title: Text(resolvedTitle),
-            actions: [
-              if (features.presence && state.onlineProfileIds.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Center(
-                    child: Text(
-                      '${state.onlineProfileIds.length} online',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ),
-            ],
+          appBar: ConversationHeader(
+            title: resolvedTitle,
+            conversation: state.conversation,
+            onBack: onBack,
+            isOnline: isOnline,
+            onManage: isGroup
+                ? () => _showGroupMenu(context, state)
+                : () => _showChatMenu(context, state),
           ),
           body: Column(
             children: [
@@ -72,6 +77,114 @@ class ConversationScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _showGroupMenu(
+    BuildContext context,
+    ConversationState state,
+  ) async {
+    final theme = chatThemeOf(context);
+    final cubit = context.read<ConversationCubit>();
+    final participant = state.participants
+        .where((p) => p.profileId == state.currentProfileId)
+        .firstOrNull;
+    final isMuted = participant?.isMuted ?? false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: theme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                isMuted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: theme.inkColor,
+              ),
+              title: Text(
+                isMuted ? 'Unmute chat' : 'Mute chat',
+                style: TextStyle(color: theme.inkColor),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                cubit.toggleMute(!isMuted);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.groups_outlined, color: theme.inkColor),
+              title: Text(
+                'Manage community',
+                style: TextStyle(color: theme.inkColor),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (state.conversation != null) {
+                  ManageCommunitySheet.show(
+                    context,
+                    conversation: state.conversation!,
+                    participants: state.participants,
+                    profiles: state.profiles,
+                    currentProfileId: state.currentProfileId ?? '',
+                    features: features,
+                    repository: repository,
+                    onUpdated: () => cubit.load(),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showChatMenu(
+    BuildContext context,
+    ConversationState state,
+  ) async {
+    final theme = chatThemeOf(context);
+    final cubit = context.read<ConversationCubit>();
+    final participant = state.participants
+        .where((p) => p.profileId == state.currentProfileId)
+        .firstOrNull;
+    final isMuted = participant?.isMuted ?? false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: theme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                isMuted
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: theme.inkColor,
+              ),
+              title: Text(
+                isMuted ? 'Unmute chat' : 'Mute chat',
+                style: TextStyle(color: theme.inkColor),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                cubit.toggleMute(!isMuted);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

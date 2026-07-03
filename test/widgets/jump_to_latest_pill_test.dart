@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:guten_chat/src/presentation/theme/chat_theme.dart';
 import 'package:guten_chat/src/presentation/widgets/jump_to_latest_pill.dart';
 
 void main() {
@@ -8,6 +9,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: buildGutenChatMaterialTheme(
+          chatTheme: const GutenChatTheme().toChatTheme(Brightness.dark),
+        ),
         home: Scaffold(
           body: Stack(
             children: [
@@ -28,8 +32,11 @@ void main() {
 
   testWidgets('JumpToLatestPill hidden when count is zero', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        theme: buildGutenChatMaterialTheme(
+          chatTheme: const GutenChatTheme().toChatTheme(Brightness.dark),
+        ),
+        home: const Scaffold(
           body: JumpToLatestPill(count: 0, onTap: _noop),
         ),
       ),

@@ -11,30 +11,46 @@ class InboxState extends Equatable {
     this.isLoading = false,
     this.error,
     this.profileNames = const {},
+    this.searchQuery = '',
   });
 
   final List<Conversation> conversations;
   final bool isLoading;
   final String? error;
   final Map<String, ChatProfile> profileNames;
+  final String searchQuery;
+
+  List<Conversation> get filteredConversations {
+    if (searchQuery.trim().isEmpty) {
+      return conversations;
+    }
+    final query = searchQuery.toLowerCase();
+    return conversations.where((conversation) {
+      final title = conversation.title?.toLowerCase() ?? '';
+      final preview = conversation.lastMessagePreview?.toLowerCase() ?? '';
+      return title.contains(query) || preview.contains(query);
+    }).toList();
+  }
 
   InboxState copyWith({
     List<Conversation>? conversations,
     bool? isLoading,
     String? error,
     Map<String, ChatProfile>? profileNames,
+    String? searchQuery,
   }) {
     return InboxState(
       conversations: conversations ?? this.conversations,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       profileNames: profileNames ?? this.profileNames,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
   @override
   List<Object?> get props =>
-      [conversations, isLoading, error, profileNames];
+      [conversations, isLoading, error, profileNames, searchQuery];
 }
 
 class InboxCubit extends Cubit<InboxState> {
@@ -78,5 +94,9 @@ class InboxCubit extends Cubit<InboxState> {
     } catch (_) {
       return unknownProfile;
     }
+  }
+
+  void setSearchQuery(String query) {
+    emit(state.copyWith(searchQuery: query));
   }
 }

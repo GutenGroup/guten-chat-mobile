@@ -16,6 +16,19 @@ void main() {
       expect(attachment.displayName, 'report.html');
     });
 
+    test('detects PDF files by extension', () {
+      const attachment = MessageAttachment(
+        id: '2',
+        messageId: 'm1',
+        kind: AttachmentKind.file,
+        storagePath: 'conv/uuid/report.pdf',
+        originalFileName: 'report.pdf',
+      );
+
+      expect(attachment.isPdf, isTrue);
+      expect(attachment.isHtml, isFalse);
+    });
+
     test('fromJson parses snake_case fields', () {
       final attachment = MessageAttachment.fromJson(const {
         'id': 'a1',

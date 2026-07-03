@@ -11,6 +11,7 @@ import '../../domain/repositories/chat_repository.dart';
 import '../theme/chat_theme.dart';
 import 'attachments/attachment_views.dart';
 import 'attachments/html_attachment_loader.dart';
+import 'attachments/pdf_attachment_loader.dart';
 import 'message_tip_button.dart';
 import 'profile_avatar.dart';
 
@@ -309,6 +310,13 @@ class MessageBubble extends StatelessWidget {
 
     if (attachment.isHtml) {
       return HtmlAttachmentLoader(
+        attachment: attachment,
+        resolveBytes: resolveBytes,
+      );
+    }
+
+    if (attachment.isPdf) {
+      return PdfAttachmentLoader(
         attachment: attachment,
         resolveBytes: resolveBytes,
       );

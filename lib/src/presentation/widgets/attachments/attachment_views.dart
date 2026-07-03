@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../domain/models/message_attachment.dart';
 import '../../theme/chat_theme.dart';
+import 'dart:typed_data';
+
 import 'fullscreen_html_viewer.dart';
 import 'fullscreen_image_viewer.dart';
+import 'fullscreen_pdf_viewer.dart';
 
 typedef AttachmentUrlResolver = Future<String> Function(String storagePath);
 
@@ -202,6 +205,19 @@ Future<void> openAttachment({
     await FullscreenHtmlViewer.show(
       context,
       html: String.fromCharCodes(html),
+      title: attachment.displayName,
+    );
+    return;
+  }
+
+  if (attachment.isPdf) {
+    final bytes = await resolveBytes(attachment.storagePath);
+    if (!context.mounted) {
+      return;
+    }
+    await FullscreenPdfViewer.show(
+      context,
+      bytes: Uint8List.fromList(bytes),
       title: attachment.displayName,
     );
     return;

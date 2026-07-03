@@ -4,7 +4,7 @@ abstract final class TipPresets {
 
   static const currency = 'USD';
 
-  static const amountCents = <int>[100, 500, 1000];
+  static const amountCents = <int>[100, 300, 500, 1000];
 
   static String formatAmount(int amountCents, {String currencyCode = currency}) {
     final dollars = amountCents / 100;

@@ -70,6 +70,8 @@ class MessageAttachment extends Equatable {
       kind == AttachmentKind.file &&
       (extension == 'html' || extension == 'htm');
 
+  bool get isPdf => kind == AttachmentKind.file && extension == 'pdf';
+
   factory MessageAttachment.fromJson(Map<String, dynamic> json) {
     return MessageAttachment(
       id: requireString(json, 'id', 'id'),

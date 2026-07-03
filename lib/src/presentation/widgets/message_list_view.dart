@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/message.dart';
 import '../../domain/models/profile.dart';
+import '../../domain/models/reaction.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
 import '../theme/chat_theme.dart';
@@ -11,6 +12,7 @@ import '../utils/message_list_builder.dart';
 import 'day_divider.dart';
 import 'jump_to_latest_pill.dart';
 import 'message_bubble.dart';
+import 'message_context_menu.dart';
 import 'typing_indicator.dart';
 
 class MessageListView extends StatefulWidget {
@@ -31,6 +33,7 @@ class MessageListView extends StatefulWidget {
 
 class _MessageListViewState extends State<MessageListView> {
   final _scrollController = ScrollController();
+  final _bubbleKeys = <String, GlobalKey>{};
   bool _pendingScrollToBottom = false;
 
   @override
@@ -41,13 +44,22 @@ class _MessageListViewState extends State<MessageListView> {
 
   @override
   void dispose() {
+    MessageContextMenu.dismiss();
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
   }
 
+  GlobalKey _keyForMessage(String messageId) {
+    return _bubbleKeys.putIfAbsent(messageId, GlobalKey.new);
+  }
+
   void _onScroll() {
+    if (MessageContextMenu.isVisible) {
+      MessageContextMenu.dismiss();
+    }
+
     if (!_scrollController.hasClients) {
       return;
     }
@@ -88,6 +100,76 @@ class _MessageListViewState extends State<MessageListView> {
               p.lastReadMessageId != null,
         )
         .length;
+  }
+
+  void _openContextMenu({
+    required BuildContext context,
+    required Message message,
+    required bool isOwn,
+    required bool isGroupedWithPrevious,
+    required ConversationState state,
+  }) {
+    final bubbleKey = _keyForMessage(message.id);
+    final renderBox =
+        bubbleKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      return;
+    }
+
+    final anchorRect = renderBox.localToGlobal(Offset.zero) & renderBox.size;
+    final theme = chatThemeOf(context);
+    final isEmphasized = message.reactions.any(
+      (r) => r.kind == ReactionKind.brand,
+    );
+    final bubbleColor = isEmphasized
+        ? theme.accentColor
+        : (isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor);
+    final textColor = isEmphasized
+        ? (theme.isDark ? Colors.black : Colors.white)
+        : (isOwn ? theme.sentTextColor : theme.receivedTextColor);
+
+    final cubit = context.read<ConversationCubit>();
+
+    MessageContextMenu.show(
+      context: context,
+      anchorRect: anchorRect,
+      message: message,
+      isOwn: isOwn,
+      features: widget.features,
+      brandMarks: widget.brandMarks,
+      onDismiss: () {},
+      onReply: () => cubit.setReplyTo(message),
+      onToggleReaction: (value, kind) => cubit.toggleReaction(
+        messageId: message.id,
+        value: value,
+        kind: kind,
+      ),
+      onForward: () => cubit.forwardMessage(message),
+      onDelete: isOwn && !message.isOptimistic
+          ? () => cubit.deleteMessage(message.id)
+          : null,
+      onSendTip: widget.features.tipping && !isOwn
+          ? (amount, currency) => cubit.sendTip(
+                recipientProfileId: message.senderProfileId,
+                amountCents: amount,
+                currency: currency,
+                messageId: message.id,
+              )
+          : null,
+      messagePreview: Material(
+        color: Colors.transparent,
+        child: MessageBubbleContent(
+          message: message,
+          isOwn: isOwn,
+          isGroupedWithPrevious: isGroupedWithPrevious,
+          features: widget.features,
+          bubbleColor: bubbleColor,
+          textColor: textColor,
+          resolveUrl: widget.repository.createSignedAttachmentUrl,
+          resolveBytes: widget.repository.downloadAttachmentBytes,
+        ),
+      ),
+    );
   }
 
   @override
@@ -158,6 +240,7 @@ class _MessageListViewState extends State<MessageListView> {
                       seenCount: _seenCount(message, state),
                       brandMarks: widget.brandMarks,
                       repository: widget.repository,
+                      bubbleKey: _keyForMessage(message.id),
                       onReply: () => context
                           .read<ConversationCubit>()
                           .setReplyTo(message),
@@ -168,16 +251,16 @@ class _MessageListViewState extends State<MessageListView> {
                             value: value,
                             kind: kind,
                           ),
-                      onSendTip: widget.features.tipping && !isOwn
-                          ? (amount, currency) => context
-                              .read<ConversationCubit>()
-                              .sendTip(
-                                recipientProfileId: message.senderProfileId,
-                                amountCents: amount,
-                                currency: currency,
-                                messageId: message.id,
-                              )
-                          : null,
+                      onOpenContextMenu: message.isSystem
+                          ? null
+                          : () => _openContextMenu(
+                                context: context,
+                                message: message,
+                                isOwn: isOwn,
+                                isGroupedWithPrevious:
+                                    item.isGroupedWithPrevious,
+                                state: state,
+                              ),
                     );
                   }
                   return const SizedBox.shrink();

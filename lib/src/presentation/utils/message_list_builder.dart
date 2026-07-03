@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/models/message.dart';
@@ -21,6 +22,10 @@ List<MessageListItem> buildMessageListItems(
   String? previousSenderId;
 
   for (final message in sorted) {
+    if (!kDebugMode && isDevBuildBanner(message)) {
+      continue;
+    }
+
     final day = DateTime.utc(
       message.createdAt.year,
       message.createdAt.month,
@@ -49,6 +54,15 @@ List<MessageListItem> buildMessageListItems(
 
 bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Dev-only build stamp messages (e.g. `8bd64f3 · Jul 3, 2026`) — hidden in release.
+bool isDevBuildBanner(Message message) {
+  final body = message.body.trim();
+  if (body.isEmpty) {
+    return false;
+  }
+  return RegExp(r'^[0-9a-f]{7}\s·\s').hasMatch(body);
+}
 
 String formatDayDivider(DateTime day) {
   final now = DateTime.now().toUtc();

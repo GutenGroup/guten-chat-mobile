@@ -113,6 +113,7 @@ class ChatRepositoryImpl implements ChatRepository {
     int? widthPx,
     int? heightPx,
     int? fileSizeBytes,
+    int? durationMs,
     String? clientTempId,
     void Function(double progress)? onProgress,
   }) =>
@@ -125,9 +126,14 @@ class ChatRepositoryImpl implements ChatRepository {
         widthPx: widthPx,
         heightPx: heightPx,
         fileSizeBytes: fileSizeBytes,
+        durationMs: durationMs,
         clientTempId: clientTempId,
         onProgress: onProgress,
       );
+
+  @override
+  Future<void> deleteMessage(String messageId) =>
+      _remote.deleteMessage(messageId);
 
   @override
   Future<String> createSignedAttachmentUrl(String storagePath) =>

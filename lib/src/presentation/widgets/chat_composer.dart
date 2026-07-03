@@ -11,6 +11,7 @@ import '../models/attachment_send_request.dart';
 import '../theme/chat_theme.dart';
 import '../utils/attachment_utils.dart';
 import 'expandable_icon_menu.dart';
+import 'voice_recorder_sheet.dart';
 
 class ChatComposer extends StatefulWidget {
   const ChatComposer({
@@ -85,6 +86,21 @@ class _ChatComposerState extends State<ChatComposer> {
     return KeyEventResult.ignored;
   }
 
+  Future<void> _recordVoiceNote() async {
+    final result = await VoiceRecorderSheet.show(context);
+    if (result == null) {
+      return;
+    }
+    widget.onAttachment(
+      AttachmentSendRequest(
+        localPath: result.path,
+        kind: AttachmentKind.voiceNote,
+        fileName: 'voice_note.m4a',
+        durationMs: result.durationMs,
+      ),
+    );
+  }
+
   Future<void> _pickCamera() async {
     try {
       final photo = await _imagePicker.pickImage(
@@ -114,6 +130,36 @@ class _ChatComposerState extends State<ChatComposer> {
       await _emitImageAttachment(photo);
     } on PlatformException catch (error) {
       _showPermissionMessage(error.message ?? 'Photo library permission denied');
+    } catch (error) {
+      _showPermissionMessage(error.toString());
+    }
+  }
+
+  Future<void> _pickHtmlFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['html', 'htm'],
+        withData: false,
+      );
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+      final file = result.files.single;
+      final path = file.path;
+      if (path == null) {
+        return;
+      }
+      widget.onAttachment(
+        AttachmentSendRequest(
+          localPath: path,
+          kind: AttachmentKind.file,
+          fileName: file.name,
+          fileSizeBytes: file.size,
+        ),
+      );
+    } on PlatformException catch (error) {
+      _showPermissionMessage(error.message ?? 'Could not pick HTML file');
     } catch (error) {
       _showPermissionMessage(error.toString());
     }
@@ -232,17 +278,31 @@ class _ChatComposerState extends State<ChatComposer> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     ExpandableIconMenu(
+                      triggerIcon: Icons.add_rounded,
                       choices: [
                         ExpandableMenuChoice(
-                          icon: Icons.photo_camera_rounded,
-                          onTap: _pickCamera,
+                          icon: Icons.mic_rounded,
+                          label: 'Voice note',
+                          onTap: _recordVoiceNote,
                         ),
                         ExpandableMenuChoice(
                           icon: Icons.image_rounded,
+                          label: 'Photo',
                           onTap: _pickGallery,
                         ),
                         ExpandableMenuChoice(
+                          icon: Icons.photo_camera_rounded,
+                          label: 'Camera',
+                          onTap: _pickCamera,
+                        ),
+                        ExpandableMenuChoice(
+                          icon: Icons.html_rounded,
+                          label: 'HTML file',
+                          onTap: _pickHtmlFile,
+                        ),
+                        ExpandableMenuChoice(
                           icon: Icons.attach_file_rounded,
+                          label: 'File',
                           onTap: _pickFile,
                         ),
                       ],

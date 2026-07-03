@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 String formatFileSize(int bytes) {
@@ -88,4 +90,8 @@ Future<(int width, int height)?> readImageDimensions(Uint8List bytes) async {
   }
 
   return null;
+}
+
+bool isLocalAttachmentPath(String path) {
+  return path.startsWith('/') || path.contains(Platform.pathSeparator);
 }

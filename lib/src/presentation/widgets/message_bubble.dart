@@ -12,7 +12,7 @@ import '../theme/chat_theme.dart';
 import 'attachments/attachment_views.dart';
 import 'attachments/html_attachment_loader.dart';
 import 'attachments/pdf_attachment_loader.dart';
-import 'message_tip_button.dart';
+import 'attachments/voice_note_attachment_view.dart';
 import 'profile_avatar.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -30,7 +30,9 @@ class MessageBubble extends StatelessWidget {
     required this.onToggleReaction,
     required this.brandMarks,
     required this.repository,
-    this.onSendTip,
+    this.bubbleKey,
+    this.onOpenContextMenu,
+    this.previewOnly = false,
   });
 
   final Message message;
@@ -45,7 +47,9 @@ class MessageBubble extends StatelessWidget {
   final void Function(String value, ReactionKind kind) onToggleReaction;
   final List<BrandReactionMark> brandMarks;
   final ChatRepository repository;
-  final void Function(int amountCents, String currency)? onSendTip;
+  final GlobalKey? bubbleKey;
+  final VoidCallback? onOpenContextMenu;
+  final bool previewOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +68,29 @@ class MessageBubble extends StatelessWidget {
       message.reactions,
       isOwn ? message.senderProfileId : '',
     );
-    final showTipAffordance =
-        features.tipping && !isOwn && onSendTip != null && !message.isSystem;
 
     Future<String> resolveUrl(String storagePath) =>
         repository.createSignedAttachmentUrl(storagePath);
 
     Future<List<int>> resolveBytes(String storagePath) =>
         repository.downloadAttachmentBytes(storagePath);
+
+    final bubble = MessageBubbleContent(
+      message: message,
+      isOwn: isOwn,
+      isGroupedWithPrevious: isGroupedWithPrevious,
+      features: features,
+      bubbleColor: bubbleColor,
+      textColor: textColor,
+      resolveUrl: resolveUrl,
+      resolveBytes: resolveBytes,
+      onOpenContextMenu: onOpenContextMenu,
+      bubbleKey: bubbleKey,
+    );
+
+    if (previewOnly) {
+      return bubble;
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -91,11 +110,6 @@ class MessageBubble extends StatelessWidget {
             )
           else if (!isOwn)
             const SizedBox(width: 36),
-          if (showTipAffordance)
-            MessageTipAffordance(
-              onTipSelected: (amount, currency) =>
-                  onSendTip!(amount, currency),
-            ),
           Flexible(
             child: Column(
               crossAxisAlignment:
@@ -113,96 +127,7 @@ class MessageBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                GestureDetector(
-                  onLongPress: features.replies ? onReply : null,
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: bubbleColor,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(theme.borderRadius),
-                        topRight: Radius.circular(theme.borderRadius),
-                        bottomLeft: Radius.circular(
-                          isOwn || isGroupedWithPrevious
-                              ? theme.borderRadius
-                              : 4,
-                        ),
-                        bottomRight: Radius.circular(
-                          !isOwn || isGroupedWithPrevious
-                              ? theme.borderRadius
-                              : 4,
-                        ),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (message.replyPreview != null && features.replies)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: (isOwn ? Colors.white : Colors.black)
-                                  .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              message.replyPreview!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: textColor.withValues(alpha: 0.85),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ..._buildAttachmentContent(
-                          context: context,
-                          resolveUrl: resolveUrl,
-                          resolveBytes: resolveBytes,
-                        ),
-                        if (message.body.isNotEmpty)
-                          Text(
-                            message.body,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 15,
-                              height: 1.35,
-                            ),
-                          ),
-                        if (message.uploadProgress != null &&
-                            message.status == MessageStatus.sending)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: LinearProgressIndicator(
-                              value: message.uploadProgress,
-                              minHeight: 3,
-                              color: theme.accentColor,
-                              backgroundColor:
-                                  theme.dividerColor.withValues(alpha: 0.4),
-                            ),
-                          ),
-                        if (message.isFailed)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              'Failed to send',
-                              style: TextStyle(
-                                color: Colors.red.shade300,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+                bubble,
                 if (features.reactions && summaries.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -270,12 +195,127 @@ class MessageBubble extends StatelessWidget {
             .firstOrNull ??
         '★';
   }
+}
 
-  List<Widget> _buildAttachmentContent({
-    required BuildContext context,
-    required Future<String> Function(String storagePath) resolveUrl,
-    required Future<List<int>> Function(String storagePath) resolveBytes,
-  }) {
+/// Bubble body used in-thread and in the context-menu overlay preview.
+class MessageBubbleContent extends StatelessWidget {
+  const MessageBubbleContent({
+    super.key,
+    required this.message,
+    required this.isOwn,
+    required this.isGroupedWithPrevious,
+    required this.features,
+    required this.bubbleColor,
+    required this.textColor,
+    required this.resolveUrl,
+    required this.resolveBytes,
+    this.bubbleKey,
+    this.onOpenContextMenu,
+  });
+
+  final Message message;
+  final bool isOwn;
+  final bool isGroupedWithPrevious;
+  final ChatFeatures features;
+  final Color bubbleColor;
+  final Color textColor;
+  final Future<String> Function(String storagePath) resolveUrl;
+  final Future<List<int>> Function(String storagePath) resolveBytes;
+  final GlobalKey? bubbleKey;
+  final VoidCallback? onOpenContextMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = chatThemeOf(context);
+    final canOpenMenu =
+        onOpenContextMenu != null && !message.isSystem;
+
+    return GestureDetector(
+      onTap: canOpenMenu ? onOpenContextMenu : null,
+      onLongPress: canOpenMenu ? onOpenContextMenu : null,
+      child: Container(
+        key: bubbleKey,
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(theme.borderRadius),
+            topRight: Radius.circular(theme.borderRadius),
+            bottomLeft: Radius.circular(
+              isOwn || isGroupedWithPrevious ? theme.borderRadius : 4,
+            ),
+            bottomRight: Radius.circular(
+              !isOwn || isGroupedWithPrevious ? theme.borderRadius : 4,
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.replyPreview != null && features.replies)
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (isOwn ? Colors.white : Colors.black)
+                      .withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  message.replyPreview!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: textColor.withValues(alpha: 0.85),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ..._buildAttachmentContent(context),
+            if (message.body.isNotEmpty)
+              Text(
+                message.body,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 15,
+                  height: 1.35,
+                ),
+              ),
+            if (message.uploadProgress != null &&
+                message.status == MessageStatus.sending)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: LinearProgressIndicator(
+                  value: message.uploadProgress,
+                  minHeight: 3,
+                  color: theme.accentColor,
+                  backgroundColor: theme.dividerColor.withValues(alpha: 0.4),
+                ),
+              ),
+            if (message.isFailed)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Failed to send',
+                  style: TextStyle(
+                    color: Colors.red.shade300,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildAttachmentContent(BuildContext context) {
     if (!message.hasAttachments) {
       return const [];
     }
@@ -284,12 +324,7 @@ class MessageBubble extends StatelessWidget {
       for (final attachment in message.attachments) ...[
         Padding(
           padding: EdgeInsets.only(bottom: message.body.isNotEmpty ? 8 : 0),
-          child: _buildAttachment(
-            context: context,
-            attachment: attachment,
-            resolveUrl: resolveUrl,
-            resolveBytes: resolveBytes,
-          ),
+          child: _buildAttachment(context: context, attachment: attachment),
         ),
       ],
     ];
@@ -298,11 +333,16 @@ class MessageBubble extends StatelessWidget {
   Widget _buildAttachment({
     required BuildContext context,
     required MessageAttachment attachment,
-    required Future<String> Function(String storagePath) resolveUrl,
-    required Future<List<int>> Function(String storagePath) resolveBytes,
   }) {
     if (attachment.kind == AttachmentKind.image) {
       return ImageAttachmentView(
+        attachment: attachment,
+        resolveUrl: resolveUrl,
+      );
+    }
+
+    if (attachment.kind == AttachmentKind.voiceNote) {
+      return VoiceNoteAttachmentView(
         attachment: attachment,
         resolveUrl: resolveUrl,
       );

@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Guten Chat Example needs camera access to capture photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record voice notes to send in chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Guten Chat Example needs photo library access to attach images.</string>
 	<key>UIApplicationSceneManifest</key>

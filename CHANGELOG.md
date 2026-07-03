@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2
+
+### Added
+- Voice note recording and playback via `flutter_sound` (replaces `record` + `just_audio` removed in 0.4.1).
+- Composer attach menu: Voice note restored as first item (Voice note · Photo · Camera · HTML file · File).
+- `path_provider` for temp recording paths; microphone permission via `permission_handler`.
+
+### iOS (host app)
+Consuming apps must declare in `Info.plist`:
+- `NSCameraUsageDescription`
+- `NSPhotoLibraryUsageDescription`
+- `NSMicrophoneUsageDescription`
+
 ## 0.4.1
 
 ### Added

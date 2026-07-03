@@ -8,10 +8,12 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/conversation.dart';
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 import '../../domain/models/participant.dart';
 import '../../domain/models/profile.dart';
 import '../../domain/models/reaction.dart';
 import '../../domain/repositories/chat_repository.dart';
+import '../models/attachment_send_request.dart';
 import '../utils/message_list_builder.dart';
 
 class ConversationState extends Equatable {
@@ -295,6 +297,125 @@ class ConversationCubit extends Cubit<ConversationState> {
           error: error.toString(),
         ),
       );
+    }
+  }
+
+  Future<void> sendAttachment(AttachmentSendRequest request) async {
+    if (state.currentProfileId == null) {
+      return;
+    }
+
+    final tempId = 'temp-${_uuid.v4()}';
+    final optimisticAttachment = MessageAttachment(
+      id: 'temp-att-$tempId',
+      messageId: tempId,
+      kind: request.kind,
+      storagePath: request.localPath,
+      widthPx: request.widthPx,
+      heightPx: request.heightPx,
+      fileSizeBytes: request.fileSizeBytes,
+      originalFileName: request.fileName,
+    );
+    final optimistic = createOptimisticMessage(
+      tempId: tempId,
+      conversationId: _conversationId,
+      senderProfileId: state.currentProfileId!,
+      body: request.caption?.trim() ?? '',
+      attachments: [optimisticAttachment],
+      uploadProgress: 0,
+    );
+
+    _optimisticMessages.add(optimistic);
+    final messages = mergeMessages(
+      serverMessages: state.messages,
+      optimisticMessages: _optimisticMessages,
+    );
+
+    emit(
+      state.copyWith(
+        messages: messages,
+        isAtBottom: true,
+        newMessageCount: 0,
+      ),
+    );
+
+    try {
+      final sent = await _repository.sendAttachment(
+        conversationId: _conversationId,
+        localPath: request.localPath,
+        kind: request.kind,
+        caption: request.caption,
+        fileName: request.fileName,
+        widthPx: request.widthPx,
+        heightPx: request.heightPx,
+        fileSizeBytes: request.fileSizeBytes,
+        clientTempId: tempId,
+        onProgress: (progress) {
+          final updated = optimistic.copyWith(uploadProgress: progress);
+          _optimisticMessages.removeWhere((m) => m.clientTempId == tempId);
+          _optimisticMessages.add(updated);
+          emit(
+            state.copyWith(
+              messages: mergeMessages(
+                serverMessages: state.messages
+                    .where((m) => m.clientTempId != tempId)
+                    .toList(),
+                optimisticMessages: _optimisticMessages,
+              ),
+            ),
+          );
+        },
+      );
+      _optimisticMessages.removeWhere((m) => m.clientTempId == tempId);
+      final reconciled = state.messages
+          .where((m) => m.clientTempId != tempId)
+          .toList()
+        ..add(sent.copyWith(status: MessageStatus.sent, clearUploadProgress: true));
+      reconciled.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      emit(state.copyWith(messages: reconciled));
+      await _repository.markRead(_conversationId, messageId: sent.id);
+    } catch (error) {
+      _optimisticMessages.removeWhere((m) => m.clientTempId == tempId);
+      final failed = optimistic.copyWith(
+        status: MessageStatus.failed,
+        clearUploadProgress: true,
+      );
+      final messagesWithFailed = mergeMessages(
+        serverMessages:
+            state.messages.where((m) => m.clientTempId != tempId).toList(),
+        optimisticMessages: [failed],
+      );
+      emit(
+        state.copyWith(
+          messages: messagesWithFailed,
+          error: error.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> sendTip({
+    required String recipientProfileId,
+    required int amountCents,
+    required String currency,
+    String? messageId,
+    String? note,
+  }) async {
+    if (!_features.tipping || state.currentProfileId == null) {
+      return;
+    }
+
+    try {
+      await _repository.sendTip(
+        conversationId: _conversationId,
+        recipientProfileId: recipientProfileId,
+        amountCents: amountCents,
+        currency: currency,
+        messageId: messageId,
+        note: note,
+      );
+    } catch (error) {
+      emit(state.copyWith(error: error.toString()));
     }
   }
 

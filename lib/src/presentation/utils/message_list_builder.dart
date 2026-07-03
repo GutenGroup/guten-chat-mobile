@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/models/message.dart';
+import '../../domain/models/message_attachment.dart';
 
 /// Builds UI list items with day dividers and consecutive-sender grouping.
 List<MessageListItem> buildMessageListItems(
@@ -100,6 +101,8 @@ Message createOptimisticMessage({
   required String body,
   String? replyToMessageId,
   String? replyPreview,
+  List<MessageAttachment> attachments = const [],
+  double? uploadProgress,
 }) {
   return Message(
     id: tempId,
@@ -111,6 +114,8 @@ Message createOptimisticMessage({
     replyPreview: replyPreview,
     status: MessageStatus.sending,
     clientTempId: tempId,
+    attachments: attachments,
+    uploadProgress: uploadProgress,
   );
 }
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -233,7 +234,7 @@ Future<void> openAttachment({
     }
     await FullscreenHtmlViewer.show(
       context,
-      html: String.fromCharCodes(html),
+      html: utf8.decode(html, allowMalformed: true),
       title: attachment.displayName,
     );
     return;

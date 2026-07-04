@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -244,7 +245,7 @@ class _InviteAttachmentPreview extends StatelessWidget {
         if (attachment.isHtml) {
           return HtmlDocumentCard(
             title: attachment.name,
-            html: String.fromCharCodes(bytes),
+            html: utf8.decode(bytes, allowMalformed: true),
           );
         }
         if (attachment.isPdf) {

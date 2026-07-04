@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ class HtmlAttachmentLoader extends StatelessWidget {
 
         return HtmlDocumentCard(
           title: attachment.displayName,
-          html: String.fromCharCodes(snapshot.data!),
+          html: utf8.decode(snapshot.data!, allowMalformed: true),
         );
       },
     );

@@ -11,6 +11,7 @@ import '../cubit/conversation_cubit.dart';
 import '../cubit/inbox_cubit.dart';
 import '../theme/chat_theme.dart';
 import 'chats/chats_screen.dart';
+import 'chats/new_chat_sheet.dart';
 import 'communities/communities_screen.dart';
 import 'conversation_screen.dart';
 import 'groups/group_icon_picker.dart';
@@ -25,6 +26,7 @@ class GutenChat extends StatefulWidget {
     super.key,
     required this.supabase,
     required this.profileLookup,
+    this.contactsLookup,
     this.features = const ChatFeatures(),
     this.theme = const GutenChatTheme(),
     this.brandMarks = const [],
@@ -40,6 +42,12 @@ class GutenChat extends StatefulWidget {
 
   final SupabaseClient supabase;
   final ProfileLookup profileLookup;
+
+  /// Optional host-supplied contact directory. When provided, the Chats tab
+  /// pencil opens a "New chat" sheet (contact search → DM, plus a
+  /// "New community" entry). When null, the pencil opens the community sheet
+  /// directly — today's behavior, so existing hosts are unaffected.
+  final ContactsLookup? contactsLookup;
   final ChatFeatures features;
   final GutenChatTheme theme;
   final List<BrandReactionMark> brandMarks;
@@ -139,6 +147,21 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
     );
   }
 
+  void _showNewChatSheet() {
+    final contactsLookup = widget.contactsLookup;
+    if (contactsLookup == null) {
+      _showNewGroupSheet();
+      return;
+    }
+    NewChatSheet.show(
+      context,
+      repository: _repository,
+      contactsLookup: contactsLookup,
+      onCreated: _openConversation,
+      onNewCommunity: _showNewGroupSheet,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_openConversationId != null) {
@@ -190,7 +213,7 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
                 ChatsScreen(
                   repository: _repository,
                   onConversationTap: (c) => _openConversation(c.id),
-                  onCreateGroup: () => _showNewGroupSheet(),
+                  onCreateGroup: _showNewChatSheet,
                   onUploadGroupIcon: widget.onUploadGroupIcon,
                   buildLabel: widget.buildLabel,
                 ),

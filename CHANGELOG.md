@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+- **"New chat" DM compose.** New optional `GutenChat.contactsLookup` host callback
+  (`ContactsLookup` — `Future<List<ChatContact>> Function(String query)`; the
+  `ChatContact` model carries `profileId` / `name` / `avatarUrl` and is exported
+  from the package barrel). When provided, the Chats tab pencil opens a
+  **New chat** bottom sheet: contact search (300 ms debounce; empty query loads
+  the initial directory), tapping a contact calls the existing `chat_create_dm`
+  RPC and opens the conversation. A **New community** row at the top routes to
+  the existing community flow. When `contactsLookup` is null the pencil keeps
+  today's behavior (straight to New community) — existing hosts unaffected.
+
 ## 0.4.4
 
 ### Added

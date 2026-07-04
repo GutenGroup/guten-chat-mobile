@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0
+## 0.6.0
 
 ### Added
 - **Paid communities (schema + UX parity with web v0.4.0).** Reconciled to the
@@ -10,10 +10,14 @@
   `p_`-prefixed names. Sends, deletes, and mark-read use direct table ops
   (`body_md`, soft `deleted_at`, participant `last_read_message_id`) — no
   `chat_send_message` / `chat_delete_message` / `chat_mark_read` RPCs.
-  for pending paid members; a **PaidGate** join screen renders title, description,
-  personal invite message, optional PDF/HTML attachment, and a **Join** button
-  wired to the new host callback `GutenChat.onJoinPaidCommunity` (no Stripe in
-  the module).
+  Communities inbox shows **Invitation · tap to join** for pending paid members; a
+  **PaidGate** join screen renders title, description, personal invite message,
+  optional PDF/HTML attachment, and a **Join** button wired to the new host
+  callback `GutenChat.onJoinPaidCommunity` (no Stripe in the module).
+
+## 0.5.0
+
+### Added
 - **"New chat" DM compose.** New optional `GutenChat.contactsLookup` host callback
   (`ContactsLookup` — `Future<List<ChatContact>> Function(String query)`; the
   `ChatContact` model carries `profileId` / `name` / `avatarUrl` and is exported

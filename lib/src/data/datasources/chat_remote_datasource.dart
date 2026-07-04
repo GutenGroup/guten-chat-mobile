@@ -25,9 +25,13 @@ class ChatRemoteDataSource {
       '*, chat_message_reactions(*), chat_message_attachments(*), chat_payment_requests(*)';
 
   Future<String> getCurrentProfileId() async {
-    final response = await client.rpc('chat_current_profile_id');
-    if (response is String && response.isNotEmpty) {
-      return response;
+    try {
+      final response = await client.rpc('chat_current_profile_id');
+      if (response is String && response.isNotEmpty) {
+        return response;
+      }
+    } on PostgrestException {
+      // Host may not expose the RPC (e.g. PGRST202); fall back to auth uid.
     }
     final userId = client.auth.currentUser?.id;
     if (userId == null) {

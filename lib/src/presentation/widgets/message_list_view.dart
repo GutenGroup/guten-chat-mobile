@@ -145,7 +145,7 @@ class _MessageListViewState extends State<MessageListView> {
         kind: kind,
       ),
       onForward: () => cubit.forwardMessage(message),
-      onDelete: isOwn && !message.isOptimistic
+      onDelete: isOwn && !message.isOptimistic && !message.isDeleted
           ? () => cubit.deleteMessage(message.id)
           : null,
       onSendTip: widget.features.tipping && !isOwn

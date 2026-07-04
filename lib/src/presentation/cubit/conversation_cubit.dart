@@ -594,8 +594,16 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   Future<void> deleteMessage(String messageId) async {
     final snapshot = state.messages;
-    final messages =
-        state.messages.where((m) => m.id != messageId).toList();
+    final messages = state.messages
+        .map(
+          (m) => m.id == messageId
+              ? m.copyWith(
+                  deletedAt: DateTime.now().toUtc(),
+                  body: '',
+                )
+              : m,
+        )
+        .toList();
     emit(state.copyWith(messages: messages));
 
     try {

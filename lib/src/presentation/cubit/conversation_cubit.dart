@@ -123,6 +123,25 @@ class ConversationCubit extends Cubit<ConversationState> {
   final _optimisticMessages = <Message>[];
   final _pendingReactions = <String, List<Reaction>>{};
 
+  Participant? _myParticipant(
+    List<Participant> participants,
+    String profileId,
+  ) {
+    for (final participant in participants) {
+      if (participant.profileId == profileId) {
+        return participant;
+      }
+    }
+    return null;
+  }
+
+  bool _isPaidGateActive(Conversation conversation, Participant? me) {
+    if (!conversation.isPaid) {
+      return false;
+    }
+    return me?.paidStatus != ParticipantPaidStatus.active;
+  }
+
   Future<void> load() async {
     emit(state.copyWith(isLoading: true, error: null));
     try {
@@ -130,7 +149,12 @@ class ConversationCubit extends Cubit<ConversationState> {
       final conversation = await _repository.fetchConversation(_conversationId);
       final participants =
           await _repository.fetchParticipants(_conversationId);
-      final messages = await _repository.fetchMessages(_conversationId);
+      final me = _myParticipant(participants, profileId);
+      final isGated = _isPaidGateActive(conversation, me);
+
+      final messages = isGated
+          ? <Message>[]
+          : await _repository.fetchMessages(_conversationId);
 
       final profiles = Map<String, ChatProfile>.from(state.profiles);
       for (final participant in participants) {
@@ -140,7 +164,7 @@ class ConversationCubit extends Cubit<ConversationState> {
 
       emit(
         state.copyWith(
-          conversation: conversation,
+          conversation: conversation.copyWith(myPaidStatus: me?.paidStatus),
           participants: participants,
           messages: messages,
           currentProfileId: profileId,
@@ -151,8 +175,10 @@ class ConversationCubit extends Cubit<ConversationState> {
         ),
       );
 
-      await _repository.markRead(_conversationId);
-      await _listen();
+      if (!isGated) {
+        await _repository.markRead(_conversationId);
+        await _listen();
+      }
     } catch (error) {
       emit(state.copyWith(isLoading: false, error: error.toString()));
     }
@@ -174,7 +200,29 @@ class ConversationCubit extends Cubit<ConversationState> {
           case PresenceChanged(:final onlineProfileIds):
             emit(state.copyWith(onlineProfileIds: onlineProfileIds));
           case ReadReceiptsChanged(:final participants):
-            emit(state.copyWith(participants: participants));
+            final profileId = state.currentProfileId;
+            final me = profileId == null
+                ? null
+                : _myParticipant(participants, profileId);
+            final conversation = state.conversation;
+            final wasGated = conversation != null &&
+                _isPaidGateActive(
+                  conversation,
+                  _myParticipant(state.participants, profileId ?? ''),
+                );
+            final isGated = conversation != null &&
+                _isPaidGateActive(conversation, me);
+            emit(
+              state.copyWith(
+                participants: participants,
+                conversation: conversation?.copyWith(
+                  myPaidStatus: me?.paidStatus,
+                ),
+              ),
+            );
+            if (wasGated && !isGated) {
+              unawaited(load());
+            }
           case MessagesUpdated(:final messages):
             emit(state.copyWith(messages: messages));
         }
@@ -399,7 +447,6 @@ class ConversationCubit extends Cubit<ConversationState> {
   Future<void> sendTip({
     required String recipientProfileId,
     required int amountCents,
-    required String currency,
     String? messageId,
     String? note,
   }) async {
@@ -408,12 +455,11 @@ class ConversationCubit extends Cubit<ConversationState> {
     }
 
     try {
-      await _repository.sendTip(
+      await _repository.createTipPending(
         conversationId: _conversationId,
-        recipientProfileId: recipientProfileId,
+        toProfileId: recipientProfileId,
         amountCents: amountCents,
-        currency: currency,
-        messageId: messageId,
+        replyToMessageId: messageId,
         note: note,
       );
     } catch (error) {
@@ -423,19 +469,26 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   Future<void> createPaymentRequest({
     required int amountCents,
-    required String currency,
     String? note,
   }) async {
     if (!_features.paymentRequests || state.currentProfileId == null) {
       return;
     }
 
+    String? requestedFromProfileId;
+    if (!state.isGroup) {
+      requestedFromProfileId = state.participants
+          .where((p) => p.profileId != state.currentProfileId)
+          .map((p) => p.profileId)
+          .firstOrNull;
+    }
+
     try {
       await _repository.createPaymentRequest(
         conversationId: _conversationId,
         amountCents: amountCents,
-        currency: currency,
         note: note,
+        requestedFromProfileId: requestedFromProfileId,
       );
     } catch (error) {
       emit(state.copyWith(error: error.toString()));
@@ -541,8 +594,16 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   Future<void> deleteMessage(String messageId) async {
     final snapshot = state.messages;
-    final messages =
-        state.messages.where((m) => m.id != messageId).toList();
+    final messages = state.messages
+        .map(
+          (m) => m.id == messageId
+              ? m.copyWith(
+                  deletedAt: DateTime.now().toUtc(),
+                  body: '',
+                )
+              : m,
+        )
+        .toList();
     emit(state.copyWith(messages: messages));
 
     try {

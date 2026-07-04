@@ -41,23 +41,50 @@ class ChatRemoteDataSource {
   }
 
   Future<List<Conversation>> fetchConversations() async {
+    final profileId = await getCurrentProfileId();
     final rows = await client
         .from('chat_conversations')
         .select('*, chat_conversation_participants!inner(*)')
         .order('last_message_at', ascending: false);
 
     return (rows as List<dynamic>)
-        .map((row) => Conversation.fromJson(Map<String, dynamic>.from(row)))
+        .map(
+          (row) => Conversation.fromJson(
+            Map<String, dynamic>.from(row),
+            currentProfileId: profileId,
+          ),
+        )
         .toList();
   }
 
   Future<Conversation> fetchConversation(String conversationId) async {
+    final profileId = await getCurrentProfileId();
     final row = await client
         .from('chat_conversations')
         .select()
         .eq('id', conversationId)
         .single();
-    return Conversation.fromJson(Map<String, dynamic>.from(row));
+    var conversation = Conversation.fromJson(
+      Map<String, dynamic>.from(row),
+      currentProfileId: profileId,
+    );
+    conversation = await _resolveInviteAttachment(conversation);
+    return conversation;
+  }
+
+  Future<Conversation> _resolveInviteAttachment(Conversation conversation) async {
+    final attachment = conversation.inviteAttachment;
+    if (attachment == null) {
+      return conversation;
+    }
+    try {
+      final signedUrl = await createSignedAttachmentUrl(attachment.path);
+      return conversation.copyWith(
+        inviteAttachment: attachment.copyWith(signedUrl: signedUrl),
+      );
+    } catch (_) {
+      return conversation;
+    }
   }
 
   Future<List<Participant>> fetchParticipants(String conversationId) async {
@@ -96,7 +123,7 @@ class ChatRemoteDataSource {
   Future<String> createDm(String otherProfileId) async {
     final response = await client.rpc(
       'chat_create_dm',
-      params: {'other_profile_id': otherProfileId},
+      params: {'p_other_profile_id': otherProfileId},
     );
     if (response is String) {
       return response;
@@ -109,21 +136,23 @@ class ChatRemoteDataSource {
 
   Future<String> createGroup({
     required String title,
+    String? description,
     required List<String> memberProfileIds,
-    String? imageUrl,
     bool isPaid = false,
-    int? joinPriceCents,
-    String? joinCurrency,
+    int? priceCents,
+    BillingInterval? billingInterval,
+    String? inviteMessage,
   }) async {
     final response = await client.rpc(
-      'chat_create_group',
+      'chat_create_group_conversation',
       params: {
-        'title': title,
-        'member_profile_ids': memberProfileIds,
-        'image_url': imageUrl,
-        'is_paid': isPaid,
-        'join_price_cents': joinPriceCents,
-        'join_currency': joinCurrency,
+        'p_title': title,
+        'p_description': description ?? '',
+        'p_is_paid': isPaid,
+        'p_price_cents': priceCents,
+        'p_billing_interval': billingInterval?.value ?? 'monthly',
+        'p_member_profile_ids': memberProfileIds,
+        'p_invite_message': inviteMessage ?? '',
       },
     );
     if (response is String) {
@@ -135,12 +164,71 @@ class ChatRemoteDataSource {
     return response.toString();
   }
 
-  Future<void> addGroupMember(String conversationId, String profileId) async {
+  Future<void> setGroupInviteAttachment({
+    required String conversationId,
+    required String path,
+    required String name,
+    required String mime,
+  }) async {
+    await client.rpc(
+      'chat_set_group_invite_attachment',
+      params: {
+        'p_conversation_id': conversationId,
+        'p_path': path,
+        'p_name': name,
+        'p_mime': mime,
+      },
+    );
+  }
+
+  Future<void> uploadGroupInviteAttachment({
+    required String conversationId,
+    required String localPath,
+    required String fileName,
+    required String mime,
+  }) async {
+    final file = File(localPath);
+    if (!await file.exists()) {
+      throw StateError('Invite attachment file not found');
+    }
+
+    final bytes = await file.readAsBytes();
+    final ext = _extensionFromName(fileName);
+    final storagePath = '$conversationId/invite/${const Uuid().v4()}.$ext';
+
+    await client.storage.from(_attachmentsBucket).uploadBinary(
+          storagePath,
+          Uint8List.fromList(bytes),
+          fileOptions: FileOptions(contentType: mime, upsert: false),
+        );
+
+    await setGroupInviteAttachment(
+      conversationId: conversationId,
+      path: storagePath,
+      name: fileName,
+      mime: mime,
+    );
+  }
+
+  String _extensionFromName(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    if (dot > 0 && dot < fileName.length - 1) {
+      return fileName.substring(dot + 1).toLowerCase();
+    }
+    return 'bin';
+  }
+
+  Future<void> addGroupMember(
+    String conversationId,
+    String profileId, {
+    ParticipantRole role = ParticipantRole.member,
+  }) async {
     await client.rpc(
       'chat_add_group_member',
       params: {
-        'conversation_id': conversationId,
-        'profile_id': profileId,
+        'p_conversation_id': conversationId,
+        'p_profile_id': profileId,
+        'p_role': role.toJson(),
       },
     );
   }
@@ -152,8 +240,8 @@ class ChatRemoteDataSource {
     await client.rpc(
       'chat_remove_group_member',
       params: {
-        'conversation_id': conversationId,
-        'profile_id': profileId,
+        'p_conversation_id': conversationId,
+        'p_profile_id': profileId,
       },
     );
   }
@@ -161,7 +249,7 @@ class ChatRemoteDataSource {
   Future<void> leaveGroup(String conversationId) async {
     await client.rpc(
       'chat_leave_group',
-      params: {'conversation_id': conversationId},
+      params: {'p_conversation_id': conversationId},
     );
   }
 
@@ -173,18 +261,19 @@ class ChatRemoteDataSource {
     await client.rpc(
       'chat_set_group_role',
       params: {
-        'conversation_id': conversationId,
-        'profile_id': profileId,
-        'role': role.toJson(),
+        'p_conversation_id': conversationId,
+        'p_profile_id': profileId,
+        'p_role': role.toJson(),
       },
     );
   }
 
-  Future<void> joinGroup(String conversationId) async {
-    await client.rpc(
+  Future<String> joinGroup(String conversationId) async {
+    final response = await client.rpc(
       'chat_join_group',
-      params: {'conversation_id': conversationId},
+      params: {'p_conversation_id': conversationId},
     );
+    return response?.toString() ?? '';
   }
 
   Future<Message> _fetchMessage(String messageId) async {
@@ -239,15 +328,16 @@ class ChatRemoteDataSource {
     onProgress?.call(0.65);
 
     final trimmedCaption = caption?.trim();
+    final senderProfileId = await getCurrentProfileId();
     final messageRow = await client
         .from('chat_messages')
         .insert({
           'conversation_id': conversationId,
+          'sender_profile_id': senderProfileId,
           if (trimmedCaption != null && trimmedCaption.isNotEmpty)
             'body_md': trimmedCaption,
-          if (clientTempId != null) 'client_temp_id': clientTempId,
         })
-        .select()
+        .select('id, created_at')
         .single();
 
     final messageId = messageRow['id'].toString();
@@ -263,7 +353,10 @@ class ChatRemoteDataSource {
 
     onProgress?.call(1);
 
-    final message = await _fetchMessage(messageId);
+    var message = await _fetchMessage(messageId);
+    if (clientTempId != null) {
+      message = message.copyWith(clientTempId: clientTempId);
+    }
     if (message.attachments.isEmpty) {
       return message.copyWith(
         attachments: [
@@ -320,14 +413,15 @@ class ChatRemoteDataSource {
   }
 
   Future<void> deleteMessage(String messageId) async {
-    try {
-      await client.rpc(
-        'chat_delete_message',
-        params: {'message_id': messageId},
-      );
-    } catch (_) {
-      await client.from('chat_messages').delete().eq('id', messageId);
-    }
+    final profileId = await getCurrentProfileId();
+    await client
+        .from('chat_messages')
+        .update({
+          'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          'body_md': null,
+        })
+        .eq('id', messageId)
+        .eq('sender_profile_id', profileId);
   }
 
   Future<Message> sendMessage({
@@ -336,31 +430,24 @@ class ChatRemoteDataSource {
     String? replyToMessageId,
     String? clientTempId,
   }) async {
-    final response = await client.rpc(
-      'chat_send_message',
-      params: {
-        'conversation_id': conversationId,
-        'body': body,
-        'reply_to_message_id': replyToMessageId,
-        'client_temp_id': clientTempId,
-      },
-    );
-
-    if (response is Map<String, dynamic>) {
-      return Message.fromJson(response);
-    }
-    if (response is Map) {
-      return Message.fromJson(Map<String, dynamic>.from(response));
-    }
-
-    // Some RPCs return only the id; fetch the full row.
-    final messageId = response.toString();
+    final profileId = await getCurrentProfileId();
     final row = await client
         .from('chat_messages')
-        .select(_messageSelect)
-        .eq('id', messageId)
+        .insert({
+          'conversation_id': conversationId,
+          'sender_profile_id': profileId,
+          'body_md': body,
+          if (replyToMessageId != null)
+            'reply_to_message_id': replyToMessageId,
+        })
+        .select('id, created_at')
         .single();
-    return Message.fromJson(Map<String, dynamic>.from(row));
+
+    final message = await _fetchMessage(row['id'].toString());
+    if (clientTempId != null) {
+      return message.copyWith(clientTempId: clientTempId);
+    }
+    return message;
   }
 
   Future<List<Reaction>> toggleReaction({
@@ -371,9 +458,9 @@ class ChatRemoteDataSource {
     final response = await client.rpc(
       'chat_toggle_reaction',
       params: {
-        'message_id': messageId,
-        'value': value,
-        'kind': kind.toJson(),
+        'p_message_id': messageId,
+        'p_reaction': value,
+        'p_kind': kind.toJson(),
       },
     );
 
@@ -394,30 +481,43 @@ class ChatRemoteDataSource {
   }
 
   Future<void> markRead(String conversationId, {String? messageId}) async {
-    await client.rpc(
-      'chat_mark_read',
-      params: {
-        'conversation_id': conversationId,
-        'message_id': messageId,
-      },
-    );
+    final profileId = await getCurrentProfileId();
+    var resolvedMessageId = messageId;
+    if (resolvedMessageId == null) {
+      final rows = await client
+          .from('chat_messages')
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .order('created_at', ascending: false)
+          .limit(1) as List<dynamic>;
+      if (rows.isNotEmpty) {
+        resolvedMessageId = rows.first['id']?.toString();
+      }
+    }
+    if (resolvedMessageId == null) {
+      return;
+    }
+
+    await client
+        .from('chat_conversation_participants')
+        .update({'last_read_message_id': resolvedMessageId})
+        .eq('conversation_id', conversationId)
+        .eq('profile_id', profileId);
   }
 
   Future<PaymentRequest> createPaymentRequest({
     required String conversationId,
     required int amountCents,
-    required String currency,
     String? note,
-    String? messageId,
+    String? requestedFromProfileId,
   }) async {
     final response = await client.rpc(
       'chat_create_payment_request',
       params: {
-        'conversation_id': conversationId,
-        'amount_cents': amountCents,
-        'currency': currency,
-        'note': note,
-        'message_id': messageId,
+        'p_conversation_id': conversationId,
+        'p_amount_cents': amountCents,
+        'p_note': note,
+        'p_requested_from_profile_id': requestedFromProfileId,
       },
     );
     if (response is Map<String, dynamic>) {
@@ -426,23 +526,21 @@ class ChatRemoteDataSource {
     return PaymentRequest.fromJson(Map<String, dynamic>.from(response as Map));
   }
 
-  Future<Tip> sendTip({
+  Future<Tip> createTipPending({
     required String conversationId,
-    required String recipientProfileId,
+    required String toProfileId,
     required int amountCents,
-    required String currency,
+    String? replyToMessageId,
     String? note,
-    String? messageId,
   }) async {
     final response = await client.rpc(
-      'chat_send_tip',
+      'chat_create_tip_pending',
       params: {
-        'conversation_id': conversationId,
-        'recipient_profile_id': recipientProfileId,
-        'amount_cents': amountCents,
-        'currency': currency,
-        'note': note,
-        'message_id': messageId,
+        'p_conversation_id': conversationId,
+        'p_to_profile_id': toProfileId,
+        'p_amount_cents': amountCents,
+        'p_reply_to_message_id': replyToMessageId,
+        'p_note': note,
       },
     );
     if (response is Map<String, dynamic>) {

@@ -4,7 +4,7 @@ description: >-
   (Instant Capture / Techpool, Cowbolt, Fysigo-mobile). Flutter sibling of
   Guten Chat Web (@gutengroup/chat-*). Talks to the SAME Supabase chat schema,
   so a message is the same conversation on web and mobile.
-version: 0.5.0
+version: 0.6.0
 publish_to: none
 repository: https://github.com/GutenGroup/guten-chat-mobile
 

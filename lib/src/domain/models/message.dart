@@ -30,6 +30,7 @@ class Message extends Equatable {
     this.attachments = const [],
     this.uploadProgress,
     this.paymentRequest,
+    this.deletedAt,
   });
 
   final String id;
@@ -48,9 +49,11 @@ class Message extends Equatable {
   final List<MessageAttachment> attachments;
   final double? uploadProgress;
   final PaymentRequest? paymentRequest;
+  final DateTime? deletedAt;
 
   bool get hasAttachments => attachments.isNotEmpty;
   bool get hasPaymentRequest => paymentRequest != null;
+  bool get isDeleted => deletedAt != null;
 
   bool get isOptimistic =>
       status == MessageStatus.sending || id.startsWith('temp-');
@@ -127,6 +130,11 @@ class Message extends Equatable {
           .map(MessageAttachment.fromJson)
           .toList(),
       paymentRequest: paymentRequest,
+      deletedAt: readJson<dynamic>(json, 'deleted_at', 'deletedAt') != null
+          ? parseTimestamp(
+              readJson<dynamic>(json, 'deleted_at', 'deletedAt'),
+            )
+          : null,
     );
   }
 
@@ -142,6 +150,7 @@ class Message extends Equatable {
         'is_system': isSystem,
         'reactions': reactions.map((r) => r.toJson()).toList(),
         'read_by_profile_ids': readByProfileIds,
+        if (deletedAt != null) 'deleted_at': deletedAt!.toIso8601String(),
       };
 
   Message copyWith({
@@ -161,6 +170,7 @@ class Message extends Equatable {
     List<MessageAttachment>? attachments,
     double? uploadProgress,
     PaymentRequest? paymentRequest,
+    DateTime? deletedAt,
     bool clearUploadProgress = false,
   }) {
     return Message(
@@ -181,6 +191,7 @@ class Message extends Equatable {
       uploadProgress:
           clearUploadProgress ? null : uploadProgress ?? this.uploadProgress,
       paymentRequest: paymentRequest ?? this.paymentRequest,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
@@ -202,6 +213,7 @@ class Message extends Equatable {
         attachments,
         uploadProgress,
         paymentRequest,
+        deletedAt,
       ];
 }
 

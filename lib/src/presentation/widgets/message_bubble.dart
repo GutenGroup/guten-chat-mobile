@@ -297,7 +297,29 @@ class MessageBubbleContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
     final canOpenMenu =
-        onOpenContextMenu != null && !message.isSystem;
+        onOpenContextMenu != null && !message.isSystem && !message.isDeleted;
+
+    if (message.isDeleted) {
+      return Container(
+        key: bubbleKey,
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: bubbleColor.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+        ),
+        child: Text(
+          'Message deleted',
+          style: TextStyle(
+            color: textColor.withValues(alpha: 0.65),
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: canOpenMenu ? onOpenContextMenu : null,

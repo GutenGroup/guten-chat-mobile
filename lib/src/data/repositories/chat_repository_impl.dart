@@ -50,24 +50,44 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<String> createGroup({
     required String title,
+    String? description,
     required List<String> memberProfileIds,
-    String? imageUrl,
     bool isPaid = false,
-    int? joinPriceCents,
-    String? joinCurrency,
+    int? priceCents,
+    BillingInterval? billingInterval,
+    String? inviteMessage,
   }) =>
       _remote.createGroup(
         title: title,
+        description: description,
         memberProfileIds: memberProfileIds,
-        imageUrl: imageUrl,
         isPaid: isPaid,
-        joinPriceCents: joinPriceCents,
-        joinCurrency: joinCurrency,
+        priceCents: priceCents,
+        billingInterval: billingInterval,
+        inviteMessage: inviteMessage,
       );
 
   @override
-  Future<void> addGroupMember(String conversationId, String profileId) =>
-      _remote.addGroupMember(conversationId, profileId);
+  Future<void> uploadGroupInviteAttachment({
+    required String conversationId,
+    required String localPath,
+    required String fileName,
+    required String mime,
+  }) =>
+      _remote.uploadGroupInviteAttachment(
+        conversationId: conversationId,
+        localPath: localPath,
+        fileName: fileName,
+        mime: mime,
+      );
+
+  @override
+  Future<void> addGroupMember(
+    String conversationId,
+    String profileId, {
+    ParticipantRole role = ParticipantRole.member,
+  }) =>
+      _remote.addGroupMember(conversationId, profileId, role: role);
 
   @override
   Future<void> removeGroupMember(String conversationId, String profileId) =>
@@ -86,7 +106,7 @@ class ChatRepositoryImpl implements ChatRepository {
       _remote.setGroupRole(conversationId, profileId, role);
 
   @override
-  Future<void> joinGroup(String conversationId) =>
+  Future<String> joinGroup(String conversationId) =>
       _remote.joinGroup(conversationId);
 
   @override
@@ -159,34 +179,30 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<PaymentRequest> createPaymentRequest({
     required String conversationId,
     required int amountCents,
-    required String currency,
     String? note,
-    String? messageId,
+    String? requestedFromProfileId,
   }) =>
       _remote.createPaymentRequest(
         conversationId: conversationId,
         amountCents: amountCents,
-        currency: currency,
         note: note,
-        messageId: messageId,
+        requestedFromProfileId: requestedFromProfileId,
       );
 
   @override
-  Future<Tip> sendTip({
+  Future<Tip> createTipPending({
     required String conversationId,
-    required String recipientProfileId,
+    required String toProfileId,
     required int amountCents,
-    required String currency,
+    String? replyToMessageId,
     String? note,
-    String? messageId,
   }) =>
-      _remote.sendTip(
+      _remote.createTipPending(
         conversationId: conversationId,
-        recipientProfileId: recipientProfileId,
+        toProfileId: toProfileId,
         amountCents: amountCents,
-        currency: currency,
+        replyToMessageId: replyToMessageId,
         note: note,
-        messageId: messageId,
       );
 
   @override

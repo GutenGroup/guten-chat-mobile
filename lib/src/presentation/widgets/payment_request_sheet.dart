@@ -85,7 +85,6 @@ class _PaymentRequestSheetState extends State<PaymentRequestSheet> {
     final note = _noteController.text.trim();
     await widget.cubit.createPaymentRequest(
       amountCents: amountCents,
-      currency: 'USD',
       note: note.isEmpty ? null : note,
     );
 

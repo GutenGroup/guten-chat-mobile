@@ -72,14 +72,26 @@ abstract class ChatRepository {
 
   Future<String> createGroup({
     required String title,
+    String? description,
     required List<String> memberProfileIds,
-    String? imageUrl,
     bool isPaid = false,
-    int? joinPriceCents,
-    String? joinCurrency,
+    int? priceCents,
+    BillingInterval? billingInterval,
+    String? inviteMessage,
   });
 
-  Future<void> addGroupMember(String conversationId, String profileId);
+  Future<void> uploadGroupInviteAttachment({
+    required String conversationId,
+    required String localPath,
+    required String fileName,
+    required String mime,
+  });
+
+  Future<void> addGroupMember(
+    String conversationId,
+    String profileId, {
+    ParticipantRole role = ParticipantRole.member,
+  });
 
   Future<void> removeGroupMember(String conversationId, String profileId);
 
@@ -91,7 +103,7 @@ abstract class ChatRepository {
     ParticipantRole role,
   );
 
-  Future<void> joinGroup(String conversationId);
+  Future<String> joinGroup(String conversationId);
 
   Future<Message> sendMessage({
     required String conversationId,
@@ -131,18 +143,16 @@ abstract class ChatRepository {
   Future<PaymentRequest> createPaymentRequest({
     required String conversationId,
     required int amountCents,
-    required String currency,
     String? note,
-    String? messageId,
+    String? requestedFromProfileId,
   });
 
-  Future<Tip> sendTip({
+  Future<Tip> createTipPending({
     required String conversationId,
-    required String recipientProfileId,
+    required String toProfileId,
     required int amountCents,
-    required String currency,
+    String? replyToMessageId,
     String? note,
-    String? messageId,
   });
 
   Stream<ConversationEvent> watchConversation(String conversationId);
@@ -151,3 +161,6 @@ abstract class ChatRepository {
 
   void dispose();
 }
+
+/// Host-provided checkout seam for paid communities (no Stripe in-module).
+typedef JoinPaidCommunityHandler = Future<bool> Function(String conversationId);

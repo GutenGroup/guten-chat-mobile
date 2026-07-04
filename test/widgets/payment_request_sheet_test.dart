@@ -43,7 +43,6 @@ void main() {
     when(
       () => cubit.createPaymentRequest(
         amountCents: any(named: 'amountCents'),
-        currency: any(named: 'currency'),
         note: any(named: 'note'),
       ),
     ).thenAnswer((_) async {});
@@ -62,7 +61,6 @@ void main() {
     verify(
       () => cubit.createPaymentRequest(
         amountCents: 1250,
-        currency: 'USD',
         note: null,
       ),
     ).called(1);

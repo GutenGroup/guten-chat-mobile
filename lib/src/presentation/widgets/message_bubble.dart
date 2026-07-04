@@ -131,26 +131,24 @@ class MessageBubble extends StatelessWidget {
                   ),
                 bubble,
                 if (features.reactions && summaries.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: summaries.map((summary) {
-                        return ActionChip(
-                          visualDensity: VisualDensity.compact,
-                          label: Text(
-                            '${_reactionLabel(summary, brandMarks)} ${summary.count}',
-                          ),
-                          backgroundColor: summary.includesMe
-                              ? theme.accentColor.withValues(alpha: 0.12)
-                              : theme.surfaceColor,
-                          onPressed: () => onToggleReaction(
-                            summary.value,
-                            summary.kind,
-                          ),
-                        );
-                      }).toList(),
+                  // Tuck the cluster up over the bubble's bottom edge so it
+                  // reads as anchored to THIS bubble (iMessage/WhatsApp), on
+                  // the sender's outside corner. Transform keeps the layout
+                  // slot stable so the timestamp below never reflows.
+                  Transform.translate(
+                    offset: const Offset(0, -6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Wrap(
+                        alignment:
+                            isOwn ? WrapAlignment.end : WrapAlignment.start,
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: summaries
+                            .map((summary) =>
+                                _reactionChip(theme, summary, brandMarks))
+                            .toList(),
+                      ),
                     ),
                   ),
                 Padding(
@@ -180,6 +178,73 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// A single reaction chip: elevated round-ended surface, hairline border and
+  /// a soft lift so it floats above the bubble in the black theme. The count is
+  /// secondary and shown only when 2+ react (a lone reaction is just the glyph
+  /// in a round chip) — visually matched to the web `.gc-pill`.
+  Widget _reactionChip(
+    ChatTheme theme,
+    ReactionSummary summary,
+    List<BrandReactionMark> brandMarks,
+  ) {
+    final mine = summary.includesMe;
+    final showCount = summary.count > 1;
+    final label = _reactionLabel(summary, brandMarks);
+    final chipBg = theme.isDark
+        ? Color.alphaBlend(
+            Colors.white.withValues(alpha: 0.07), theme.pillColor)
+        : Colors.white;
+    final background = mine
+        ? Color.alphaBlend(theme.accentColor.withValues(alpha: 0.16), chipBg)
+        : chipBg;
+    return GestureDetector(
+      onTap: () => onToggleReaction(summary.value, summary.kind),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+        padding: EdgeInsets.symmetric(
+          horizontal: showCount ? 8 : 5,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: mine
+                ? theme.accentColor.withValues(alpha: 0.55)
+                : theme.dividerColor,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: theme.isDark ? 0.45 : 0.16),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 14, height: 1.0)),
+            if (showCount) ...[
+              const SizedBox(width: 4),
+              Text(
+                '${summary.count}',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.0,
+                  fontWeight: FontWeight.w600,
+                  color: mine ? theme.accentColor : theme.subtleTextColor,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

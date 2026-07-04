@@ -7,6 +7,7 @@ library guten_chat;
 
 export 'src/domain/models/chat_features.dart';
 export 'src/domain/models/conversation.dart';
+export 'src/domain/models/invite_attachment.dart';
 export 'src/domain/models/message.dart';
 export 'src/domain/models/message_attachment.dart';
 export 'src/domain/models/participant.dart';

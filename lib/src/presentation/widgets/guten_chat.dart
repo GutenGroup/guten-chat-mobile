@@ -37,6 +37,7 @@ class GutenChat extends StatefulWidget {
     this.profileHandle = 'user',
     this.onUploadGroupIcon,
     this.onEditProfile,
+    this.onJoinPaidCommunity,
     this.buildLabel,
   });
 
@@ -64,6 +65,10 @@ class GutenChat extends StatefulWidget {
   final String profileHandle;
   final GroupIconUploadCallback? onUploadGroupIcon;
   final VoidCallback? onEditProfile;
+
+  /// Host-provided checkout for paid communities. Return `true` when the user
+  /// has joined (paid_status flips to `active` via the host webhook).
+  final JoinPaidCommunityHandler? onJoinPaidCommunity;
 
   /// Optional build stamp (e.g. "b16 · chat 0.4.3") rendered as a tiny
   /// caption at the bottom of the Chats tab — mirrors the web app's version
@@ -143,6 +148,7 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
       repository: _repository,
       isPaid: isPaid,
       onUploadIcon: widget.onUploadGroupIcon,
+      contactsLookup: widget.contactsLookup,
       onCreated: _openConversation,
     );
   }
@@ -180,6 +186,7 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
             repository: _repository,
             onBack: _closeConversation,
             onUploadGroupIcon: widget.onUploadGroupIcon,
+            onJoinPaidCommunity: widget.onJoinPaidCommunity,
           ),
         ),
       );
@@ -258,6 +265,7 @@ class GutenChatConversationRoute extends StatelessWidget {
     this.repository,
     this.title,
     this.onUploadGroupIcon,
+    this.onJoinPaidCommunity,
   });
 
   final SupabaseClient supabase;
@@ -269,6 +277,7 @@ class GutenChatConversationRoute extends StatelessWidget {
   final ChatRepository? repository;
   final String? title;
   final GroupIconUploadCallback? onUploadGroupIcon;
+  final JoinPaidCommunityHandler? onJoinPaidCommunity;
 
   @override
   Widget build(BuildContext context) {
@@ -296,6 +305,7 @@ class GutenChatConversationRoute extends StatelessWidget {
           repository: chatRepository,
           title: title,
           onUploadGroupIcon: onUploadGroupIcon,
+          onJoinPaidCommunity: onJoinPaidCommunity,
         ),
       ),
     );

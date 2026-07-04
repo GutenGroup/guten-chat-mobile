@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/models/chat_features.dart';
-import '../../domain/models/tip_presets.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../cubit/conversation_cubit.dart';
 import '../theme/chat_theme.dart';
@@ -11,6 +10,7 @@ import 'chat_composer.dart';
 import 'conversation_header.dart';
 import 'groups/group_icon_picker.dart';
 import 'groups/manage_community_sheet.dart';
+import 'groups/paid_gate.dart';
 import 'member_picker_sheet.dart';
 import 'message_list_view.dart';
 import 'payment_request_sheet.dart';
@@ -26,6 +26,7 @@ class ConversationScreen extends StatelessWidget {
     this.title,
     this.onBack,
     this.onUploadGroupIcon,
+    this.onJoinPaidCommunity,
   });
 
   final String conversationId;
@@ -35,6 +36,7 @@ class ConversationScreen extends StatelessWidget {
   final String? title;
   final VoidCallback? onBack;
   final GroupIconUploadCallback? onUploadGroupIcon;
+  final JoinPaidCommunityHandler? onJoinPaidCommunity;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +48,8 @@ class ConversationScreen extends StatelessWidget {
         final isOnline = features.presence &&
             state.onlineProfileIds.isNotEmpty &&
             !isGroup;
+        final conversation = state.conversation;
+        final isGated = conversation?.isPaidGateActive ?? false;
 
         return Scaffold(
           // The composer is the single, explicit owner of the keyboard inset
@@ -68,36 +72,45 @@ class ConversationScreen extends StatelessWidget {
           body: Column(
             children: [
               Expanded(
-                child: MessageListView(
+                child: isGated && conversation != null
+                    ? PaidGate(
+                        conversation: conversation,
+                        repository: repository,
+                        onJoinPaidCommunity: onJoinPaidCommunity,
+                        onJoined: () =>
+                            context.read<ConversationCubit>().load(),
+                      )
+                    : MessageListView(
+                        features: features,
+                        brandMarks: brandMarks,
+                        repository: repository,
+                      ),
+              ),
+              if (!isGated)
+                ChatComposer(
                   features: features,
                   brandMarks: brandMarks,
-                  repository: repository,
+                  replyToMessage: state.replyToMessage,
+                  onClearReply: () =>
+                      context.read<ConversationCubit>().setReplyTo(null),
+                  onSend: (text) =>
+                      context.read<ConversationCubit>().sendMessage(text),
+                  onAttachment: (request) => context
+                      .read<ConversationCubit>()
+                      .sendAttachment(request),
+                  onTypingChanged: (isTyping) => context
+                      .read<ConversationCubit>()
+                      .notifyTyping(isTyping),
+                  onRequestPayment: features.paymentRequests
+                      ? () => PaymentRequestSheet.show(
+                            context,
+                            cubit: context.read<ConversationCubit>(),
+                          )
+                      : null,
+                  onSendTip: features.tipping
+                      ? () => _showComposerTip(context, state)
+                      : null,
                 ),
-              ),
-              ChatComposer(
-                features: features,
-                brandMarks: brandMarks,
-                replyToMessage: state.replyToMessage,
-                onClearReply: () =>
-                    context.read<ConversationCubit>().setReplyTo(null),
-                onSend: (text) =>
-                    context.read<ConversationCubit>().sendMessage(text),
-                onAttachment: (request) => context
-                    .read<ConversationCubit>()
-                    .sendAttachment(request),
-                onTypingChanged: (isTyping) => context
-                    .read<ConversationCubit>()
-                    .notifyTyping(isTyping),
-                onRequestPayment: features.paymentRequests
-                    ? () => PaymentRequestSheet.show(
-                          context,
-                          cubit: context.read<ConversationCubit>(),
-                        )
-                    : null,
-                onSendTip: features.tipping
-                    ? () => _showComposerTip(context, state)
-                    : null,
-              ),
             ],
           ),
         );
@@ -157,7 +170,6 @@ class ConversationScreen extends StatelessWidget {
       onSelect: (amountCents) => cubit.sendTip(
         recipientProfileId: recipientProfileId!,
         amountCents: amountCents,
-        currency: TipPresets.currency,
       ),
     );
   }

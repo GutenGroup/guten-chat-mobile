@@ -142,13 +142,14 @@ class _CommunityTile extends StatelessWidget {
     if (!community.isPaid) {
       return 'Free';
     }
-    final cents = community.joinPriceCents;
-    if (cents == null) {
-      return 'Paid';
+    return community.formattedPrice;
+  }
+
+  String get _subtitle {
+    if (community.isPaidInvitePending) {
+      return 'Invitation · tap to join';
     }
-    final dollars = (cents / 100).toStringAsFixed(0);
-    final currency = community.joinCurrency ?? 'USD';
-    return '\$$dollars/mo · $currency';
+    return 'Feed · Library · Chat · Resources';
   }
 
   @override
@@ -210,10 +211,15 @@ class _CommunityTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Feed · Library · Chat · Resources',
+                    _subtitle,
                     style: TextStyle(
-                      color: theme.subtleTextColor,
+                      color: community.isPaidInvitePending
+                          ? theme.paidAccentColor
+                          : theme.subtleTextColor,
                       fontSize: 13,
+                      fontWeight: community.isPaidInvitePending
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                   ),
                   if (community.lastMessagePreview != null &&

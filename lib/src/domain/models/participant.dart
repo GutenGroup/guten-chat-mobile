@@ -30,6 +30,39 @@ enum ParticipantRole {
       this == ParticipantRole.moderator;
 }
 
+/// Mirrors `chat_conversation_participants.paid_status`.
+enum ParticipantPaidStatus {
+  free,
+  pending,
+  active,
+  pastDue,
+  canceled;
+
+  static ParticipantPaidStatus fromJson(String? value) {
+    switch (value) {
+      case 'pending':
+        return ParticipantPaidStatus.pending;
+      case 'active':
+        return ParticipantPaidStatus.active;
+      case 'past_due':
+        return ParticipantPaidStatus.pastDue;
+      case 'canceled':
+        return ParticipantPaidStatus.canceled;
+      case 'free':
+      default:
+        return ParticipantPaidStatus.free;
+    }
+  }
+
+  String toJson() => switch (this) {
+        ParticipantPaidStatus.free => 'free',
+        ParticipantPaidStatus.pending => 'pending',
+        ParticipantPaidStatus.active => 'active',
+        ParticipantPaidStatus.pastDue => 'past_due',
+        ParticipantPaidStatus.canceled => 'canceled',
+      };
+}
+
 /// Mirrors `chat_conversation_participants`.
 class Participant extends Equatable {
   const Participant({
@@ -37,6 +70,9 @@ class Participant extends Equatable {
     required this.profileId,
     required this.role,
     required this.joinedAt,
+    this.paidStatus = ParticipantPaidStatus.free,
+    this.invitedByProfileId,
+    this.leftAt,
     this.lastReadAt,
     this.lastReadMessageId,
     this.isMuted = false,
@@ -45,6 +81,9 @@ class Participant extends Equatable {
   final String conversationId;
   final String profileId;
   final ParticipantRole role;
+  final ParticipantPaidStatus paidStatus;
+  final String? invitedByProfileId;
+  final DateTime? leftAt;
   final DateTime joinedAt;
   final DateTime? lastReadAt;
   final String? lastReadMessageId;
@@ -58,6 +97,17 @@ class Participant extends Equatable {
       role: ParticipantRole.fromJson(
         readJson<String>(json, 'role', 'role'),
       ),
+      paidStatus: ParticipantPaidStatus.fromJson(
+        readJson<String>(json, 'paid_status', 'paidStatus'),
+      ),
+      invitedByProfileId: readJson<String>(
+        json,
+        'invited_by_profile_id',
+        'invitedByProfileId',
+      ),
+      leftAt: readJson<dynamic>(json, 'left_at', 'leftAt') != null
+          ? parseTimestamp(readJson<dynamic>(json, 'left_at', 'leftAt'))
+          : null,
       joinedAt: parseTimestamp(
         readJson<dynamic>(json, 'joined_at', 'joinedAt'),
       ),
@@ -76,6 +126,9 @@ class Participant extends Equatable {
         'conversation_id': conversationId,
         'profile_id': profileId,
         'role': role.toJson(),
+        'paid_status': paidStatus.toJson(),
+        'invited_by_profile_id': invitedByProfileId,
+        'left_at': leftAt?.toIso8601String(),
         'joined_at': joinedAt.toIso8601String(),
         'last_read_at': lastReadAt?.toIso8601String(),
         'last_read_message_id': lastReadMessageId,
@@ -86,6 +139,9 @@ class Participant extends Equatable {
     String? conversationId,
     String? profileId,
     ParticipantRole? role,
+    ParticipantPaidStatus? paidStatus,
+    String? invitedByProfileId,
+    DateTime? leftAt,
     DateTime? joinedAt,
     DateTime? lastReadAt,
     String? lastReadMessageId,
@@ -95,6 +151,9 @@ class Participant extends Equatable {
       conversationId: conversationId ?? this.conversationId,
       profileId: profileId ?? this.profileId,
       role: role ?? this.role,
+      paidStatus: paidStatus ?? this.paidStatus,
+      invitedByProfileId: invitedByProfileId ?? this.invitedByProfileId,
+      leftAt: leftAt ?? this.leftAt,
       joinedAt: joinedAt ?? this.joinedAt,
       lastReadAt: lastReadAt ?? this.lastReadAt,
       lastReadMessageId: lastReadMessageId ?? this.lastReadMessageId,
@@ -107,6 +166,9 @@ class Participant extends Equatable {
         conversationId,
         profileId,
         role,
+        paidStatus,
+        invitedByProfileId,
+        leftAt,
         joinedAt,
         lastReadAt,
         lastReadMessageId,

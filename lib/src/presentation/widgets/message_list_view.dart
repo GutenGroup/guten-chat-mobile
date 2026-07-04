@@ -149,10 +149,9 @@ class _MessageListViewState extends State<MessageListView> {
           ? () => cubit.deleteMessage(message.id)
           : null,
       onSendTip: widget.features.tipping && !isOwn
-          ? (amount, currency) => cubit.sendTip(
+          ? (amount, _) => cubit.sendTip(
                 recipientProfileId: message.senderProfileId,
                 amountCents: amount,
-                currency: currency,
                 messageId: message.id,
               )
           : null,

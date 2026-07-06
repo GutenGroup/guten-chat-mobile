@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+- **Theme contract — a host app can no longer ship the unthemed gray default
+  silently.** `GutenChatTheme` grows the full host-DLS token set:
+  `backgroundColor`, `surfaceColor`, `sentBubbleColor`, `receivedBubbleColor`,
+  `sentTextColor`, `receivedTextColor`, `fontFamily`, `borderRadius` — all
+  optional, deriving the existing v0.5.0 defaults from `accentColor` + the
+  shared foundation tokens when null, so existing callers are value-identical.
+  `fontFamily` flows through the resolved `ChatTheme` into the chat
+  `ThemeData`. Derived neighbours (composer ground, translucent bottom bar,
+  search field) follow the host `backgroundColor`/`surfaceColor` overrides.
+- **Loud unthemed default (debug).** Mounting `GutenChat` (or
+  `GutenChatConversationRoute`) with no theme prints a prominent once-per-run
+  console banner telling the host to pass `GutenChatTheme(...)` from its
+  design system. Compiles away in release. New: `GutenChatTheme.isUnthemed`,
+  `debugCheckGutenChatHostTheme`, `debugResetGutenChatThemeWarning` (test
+  hook). README gains "Theming — bring your host DLS" with Fysigo as the
+  reference integration.
+
 ## 0.7.0
 
 ### Changed

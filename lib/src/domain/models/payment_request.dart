@@ -12,6 +12,8 @@ enum PaymentRequestStatus {
     switch (value) {
       case 'paid':
         return PaymentRequestStatus.paid;
+      // Live schema spells it `canceled` (one l); legacy payloads used two.
+      case 'canceled':
       case 'cancelled':
         return PaymentRequestStatus.cancelled;
       case 'expired':
@@ -58,7 +60,10 @@ class PaymentRequest extends Equatable {
       id: requireString(json, 'id', 'id'),
       conversationId:
           requireString(json, 'conversation_id', 'conversationId'),
-      requesterProfileId:
+      // Live schema column is `requested_by_profile_id`; the legacy
+      // `requester_profile_id` accepted for older payloads + toJson round-trip.
+      requesterProfileId: readJson<String>(
+              json, 'requested_by_profile_id', 'requestedByProfileId') ??
           requireString(json, 'requester_profile_id', 'requesterProfileId'),
       amountCents: readInt(json, 'amount_cents', 'amountCents') ?? 0,
       currency: readJson<String>(json, 'currency', 'currency') ?? 'USD',
@@ -69,8 +74,10 @@ class PaymentRequest extends Equatable {
         readJson<dynamic>(json, 'created_at', 'createdAt'),
       ),
       messageId: readJson<String>(json, 'message_id', 'messageId'),
+      // Live schema: `paid_by_profile_id` (who settled it).
       payerProfileId:
-          readJson<String>(json, 'payer_profile_id', 'payerProfileId'),
+          readJson<String>(json, 'paid_by_profile_id', 'paidByProfileId') ??
+              readJson<String>(json, 'payer_profile_id', 'payerProfileId'),
       note: readJson<String>(json, 'note', 'note'),
       paidAt: readJson<dynamic>(json, 'paid_at', 'paidAt') != null
           ? parseTimestamp(readJson<dynamic>(json, 'paid_at', 'paidAt'))
@@ -81,12 +88,14 @@ class PaymentRequest extends Equatable {
   Map<String, dynamic> toJson() => {
         'id': id,
         'conversation_id': conversationId,
+        'requested_by_profile_id': requesterProfileId,
         'requester_profile_id': requesterProfileId,
         'amount_cents': amountCents,
         'currency': currency,
         'status': status.toJson(),
         'created_at': createdAt.toIso8601String(),
         'message_id': messageId,
+        'paid_by_profile_id': payerProfileId,
         'payer_profile_id': payerProfileId,
         'note': note,
         'paid_at': paidAt?.toIso8601String(),

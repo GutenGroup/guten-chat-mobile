@@ -31,9 +31,13 @@ class Tip extends Equatable {
       id: requireString(json, 'id', 'id'),
       conversationId:
           requireString(json, 'conversation_id', 'conversationId'),
-      senderProfileId:
+      // Live schema columns are `from_profile_id` / `to_profile_id`; the
+      // legacy names accepted for older payloads + toJson round-trip.
+      senderProfileId: readJson<String>(json, 'from_profile_id',
+              'fromProfileId') ??
           requireString(json, 'sender_profile_id', 'senderProfileId'),
-      recipientProfileId:
+      recipientProfileId: readJson<String>(json, 'to_profile_id',
+              'toProfileId') ??
           requireString(json, 'recipient_profile_id', 'recipientProfileId'),
       amountCents: readInt(json, 'amount_cents', 'amountCents') ?? 0,
       currency: readJson<String>(json, 'currency', 'currency') ?? 'USD',
@@ -48,7 +52,9 @@ class Tip extends Equatable {
   Map<String, dynamic> toJson() => {
         'id': id,
         'conversation_id': conversationId,
+        'from_profile_id': senderProfileId,
         'sender_profile_id': senderProfileId,
+        'to_profile_id': recipientProfileId,
         'recipient_profile_id': recipientProfileId,
         'amount_cents': amountCents,
         'currency': currency,

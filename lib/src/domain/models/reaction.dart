@@ -41,7 +41,10 @@ class Reaction extends Equatable {
     return Reaction(
       messageId: requireString(json, 'message_id', 'messageId'),
       profileId: requireString(json, 'profile_id', 'profileId'),
-      value: requireString(json, 'value', 'value'),
+      // Live schema column (0003) is `reaction`; `value` accepted for
+      // legacy payloads + this model's own toJson round-trip.
+      value: readJson<String>(json, 'reaction', 'reaction') ??
+          requireString(json, 'value', 'value'),
       kind: ReactionKind.fromJson(
         readJson<String>(json, 'kind', 'kind') ??
             readJson<String>(json, 'reaction_kind', 'reactionKind'),
@@ -55,6 +58,7 @@ class Reaction extends Equatable {
   Map<String, dynamic> toJson() => {
         'message_id': messageId,
         'profile_id': profileId,
+        'reaction': value,
         'value': value,
         'kind': kind.toJson(),
         'created_at': createdAt.toIso8601String(),

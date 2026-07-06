@@ -13,6 +13,7 @@ import '../../domain/models/payment_request.dart';
 import '../../domain/models/reaction.dart';
 import '../../domain/models/tip.dart';
 import '../../domain/repositories/chat_repository.dart';
+import '../../domain/utils/json_utils.dart';
 
 /// Low-level Supabase access to `chat_*` tables and SECURITY DEFINER RPCs.
 class ChatRemoteDataSource {
@@ -637,9 +638,11 @@ class ConversationChannel {
               .from('chat_message_reactions')
               .select()
               .eq('message_id', messageId);
-          final reactions = (rows as List<dynamic>)
-              .map((row) => Reaction.fromJson(Map<String, dynamic>.from(row)))
-              .toList();
+          final reactions = parseRowsLenient(
+            rows as List<dynamic>,
+            Reaction.fromJson,
+            'reaction',
+          );
           _controller.add(
             ReactionChanged(messageId: messageId, reactions: reactions),
           );

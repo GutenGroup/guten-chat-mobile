@@ -1,3 +1,29 @@
+import 'package:flutter/foundation.dart';
+
+/// Parses a list of joined/refetched rows, dropping any row that fails to
+/// parse instead of throwing — a malformed decoration row (reaction,
+/// attachment, payment card) must never take down the whole conversation.
+/// Each drop is logged in debug builds.
+List<T> parseRowsLenient<T>(
+  Iterable<dynamic> rows,
+  T Function(Map<String, dynamic>) fromJson,
+  String what,
+) {
+  final out = <T>[];
+  for (final row in rows) {
+    if (row is! Map) continue;
+    try {
+      out.add(fromJson(Map<String, dynamic>.from(row)));
+    } catch (error) {
+      assert(() {
+        debugPrint('GutenChat: dropping unparseable $what row: $error');
+        return true;
+      }());
+    }
+  }
+  return out;
+}
+
 /// Parses Supabase `timestamptz` values into UTC [DateTime].
 DateTime parseTimestamp(dynamic value) {
   if (value == null) {

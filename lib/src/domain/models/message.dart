@@ -89,15 +89,13 @@ class Message extends Equatable {
       'chat_payment_requests',
       'paymentRequest',
     );
-    PaymentRequest? paymentRequest;
-    if (paymentRequestJson is Map<String, dynamic>) {
-      paymentRequest = PaymentRequest.fromJson(paymentRequestJson);
-    } else if (paymentRequestJson is List && paymentRequestJson.isNotEmpty) {
-      final first = paymentRequestJson.first;
-      if (first is Map<String, dynamic>) {
-        paymentRequest = PaymentRequest.fromJson(first);
-      }
-    }
+    final paymentRequests = parseRowsLenient(
+      paymentRequestJson is List ? paymentRequestJson : [paymentRequestJson],
+      PaymentRequest.fromJson,
+      'payment request',
+    );
+    final paymentRequest =
+        paymentRequests.isEmpty ? null : paymentRequests.first;
 
     return Message(
       id: requireString(json, 'id', 'id'),
@@ -120,15 +118,13 @@ class Message extends Equatable {
           readJson<String>(json, 'reply_to_message_id', 'replyToMessageId'),
       replyPreview: readJson<String>(json, 'reply_preview', 'replyPreview'),
       isSystem: readJson<bool>(json, 'is_system', 'isSystem') ?? false,
-      reactions: reactionsJson
-          .whereType<Map<String, dynamic>>()
-          .map(Reaction.fromJson)
-          .toList(),
+      reactions: parseRowsLenient(reactionsJson, Reaction.fromJson, 'reaction'),
       readByProfileIds: readBy.map((e) => e.toString()).toList(),
-      attachments: attachmentsJson
-          .whereType<Map<String, dynamic>>()
-          .map(MessageAttachment.fromJson)
-          .toList(),
+      attachments: parseRowsLenient(
+        attachmentsJson,
+        MessageAttachment.fromJson,
+        'attachment',
+      ),
       paymentRequest: paymentRequest,
       deletedAt: readJson<dynamic>(json, 'deleted_at', 'deletedAt') != null
           ? parseTimestamp(

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.8.1
+
+### Fixed
+- **Live-schema column names in the money/reaction parsers — conversations no
+  longer crash.** The 0.6.0 reconciliation missed three tables, so any
+  conversation containing a reaction (or payment request) failed to load with
+  `FormatException: Missing required field` (hit on-device in Fysigo b30,
+  4 prod conversations). Verified against the live schema + prod DB:
+  - `Reaction`: reads `reaction` (was `value`-only).
+  - `PaymentRequest`: reads `requested_by_profile_id` (was
+    `requester_profile_id`-only), `paid_by_profile_id` (was
+    `payer_profile_id`-only), and accepts the schema's `canceled` spelling.
+  - `Tip`: reads `from_profile_id`/`to_profile_id` (was
+    `sender_profile_id`/`recipient_profile_id`-only) — tip sends parse the
+    RPC's returned row again.
+  Legacy key names still parse (fallback), and each `toJson` emits both
+  spellings for lossless round-trips.
+- **Decoration rows can no longer take down a thread.** Embedded reactions,
+  attachments, and payment cards now parse leniently (`parseRowsLenient`): a
+  malformed row is dropped with a debug log instead of throwing through the
+  whole conversation load. Schema-shaped fixtures pin all of the above in
+  `test/schema_row_parsing_test.dart`.
+
 ## 0.8.0
 
 ### Added

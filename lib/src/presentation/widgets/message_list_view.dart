@@ -216,7 +216,13 @@ class _MessageListViewState extends State<MessageListView> {
               color: theme.backgroundColor,
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                // The thread extends behind the translucent glass header —
+                // pad the first message past the status bar + toolbar so it
+                // starts below the bar but scrolls visibly under it.
+                padding: EdgeInsets.only(
+                  top: MediaQuery.paddingOf(context).top + kToolbarHeight + 8,
+                  bottom: 8,
+                ),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];

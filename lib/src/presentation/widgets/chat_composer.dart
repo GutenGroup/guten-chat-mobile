@@ -403,11 +403,14 @@ class _ChatComposerState extends State<ChatComposer> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        top: false,
-        child: Material(
-          color: theme.composerBackgroundColor,
-          elevation: 8,
+      // SafeArea INSIDE the Material: the composer surface paints all the
+      // way to the physical bottom edge (no bare gap in the home-indicator
+      // zone — Daniel 2026-07-06); the content stays above the inset.
+      child: Material(
+        color: theme.composerBackgroundColor,
+        elevation: 8,
+        child: SafeArea(
+          top: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

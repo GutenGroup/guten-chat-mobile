@@ -31,4 +31,31 @@ void main() {
     await tester.pump();
     expect(selected, GutenChatTab.updates);
   });
+
+  testWidgets('active tab carries the host accent (web .gc-tab parity)',
+      (tester) async {
+    const accent = Color(0xFF04AA72);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildGutenChatMaterialTheme(
+          chatTheme: const GutenChatTheme(accentColor: accent)
+              .toChatTheme(Brightness.dark),
+        ),
+        home: Scaffold(
+          bottomNavigationBar: LiquidGlassBottomBar(
+            selected: GutenChatTab.chats,
+            profileInitials: 'DE',
+            onSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final selectedIcon = tester.widget<Icon>(find.byIcon(Icons.chat_bubble));
+    expect(selectedIcon.color, accent);
+    final unselectedIcon =
+        tester.widget<Icon>(find.byIcon(Icons.groups_outlined));
+    expect(unselectedIcon.color, isNot(accent));
+  });
 }

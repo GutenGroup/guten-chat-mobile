@@ -24,7 +24,11 @@ class ProfileScreen extends StatelessWidget {
   final String handle;
   final String avatarInitials;
   final GutenChatAppearance appearance;
-  final ValueChanged<GutenChatAppearance> onAppearanceChanged;
+
+  /// Null = the host app pins the appearance (its DLS owns light/dark) —
+  /// the appearance tile is hidden so a user toggle can't override the
+  /// host design system.
+  final ValueChanged<GutenChatAppearance>? onAppearanceChanged;
   final String visibilityLabel;
   final bool notificationsEnabled;
   final VoidCallback? onVisibilityTap;
@@ -37,7 +41,10 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
 
-    return ColoredBox(
+    // Material (not ColoredBox): the settings ListTiles paint their ink on
+    // the nearest Material — a plain ColoredBox hides it and newer Flutter
+    // stables assert on the combination.
+    return Material(
       color: theme.backgroundColor,
       child: CustomScrollView(
         slivers: [
@@ -97,10 +104,11 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: visibilityLabel,
                 onTap: onVisibilityTap,
               ),
-              _AppearanceTile(
-                current: appearance,
-                onChanged: onAppearanceChanged,
-              ),
+              if (onAppearanceChanged != null)
+                _AppearanceTile(
+                  current: appearance,
+                  onChanged: onAppearanceChanged!,
+                ),
               _SettingsTile(
                 icon: Icons.notifications_outlined,
                 title: 'Notifications',

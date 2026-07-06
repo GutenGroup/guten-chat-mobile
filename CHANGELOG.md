@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.9.0
+
+### Changed
+- **Shell DLS round (Daniel's on-device feedback, 2026-07-06).** The chat
+  shell now carries the host accent the way the web module does — not just
+  the bubbles:
+  - Active bottom-bar tab (icon + label + profile avatar) = accent
+    (web `.gc-tab[aria-selected]` parity).
+  - Unread-count pill = accent with accent-contrast ink (web unread badge
+    parity).
+  - Primary bar affordances (new chat pencil, new community +) = accent
+    (web `.gc-btn--primary` parity).
+  - **Translucent glass headers**: the conversation header and every tab's
+    app bar are now blurred translucent chrome (`glassBarFlexibleSpace`,
+    the top-side twin of the bottom bar) — the thread/list scrolls visibly
+    under the bar. The thread Scaffold extends behind its header; the
+    message list pads itself past it.
+  - **Composer fills to the physical bottom edge** — SafeArea moved inside
+    the composer's Material, so its surface paints through the
+    home-indicator zone (no more bare gap under the input).
+  - **Host-pinned appearance removes the in-chat light/dark toggle** — a
+    host passing `appearance != system` owns light/dark (Fysigo is
+    black-only); the Profile appearance tile only renders when the host
+    follows the system.
+
 ## 0.8.1
 
 ### Fixed

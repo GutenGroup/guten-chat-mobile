@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/chat_theme.dart';
+import '../shell/glass_bar.dart';
 
 /// Updates tab — public feed scaffold (Phase 2).
 ///
@@ -44,7 +45,8 @@ class UpdatesScreen extends StatelessWidget {
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: theme.backgroundColor,
+            backgroundColor: Colors.transparent,
+            flexibleSpace: glassBarFlexibleSpace(theme),
             title: Text(
               'Updates',
               style: TextStyle(

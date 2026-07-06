@@ -6,6 +6,7 @@ import '../../../domain/models/profile.dart';
 import '../../../domain/repositories/chat_repository.dart';
 import '../../cubit/inbox_cubit.dart';
 import '../../theme/chat_theme.dart';
+import '../shell/glass_bar.dart';
 import '../groups/group_icon_mark.dart';
 import '../groups/group_icon_picker.dart';
 
@@ -40,7 +41,8 @@ class CommunitiesScreen extends StatelessWidget {
             slivers: [
               SliverAppBar(
                 pinned: true,
-                backgroundColor: theme.backgroundColor,
+                backgroundColor: Colors.transparent,
+                flexibleSpace: glassBarFlexibleSpace(theme),
                 title: Text(
                   'Communities',
                   style: TextStyle(
@@ -51,7 +53,7 @@ class CommunitiesScreen extends StatelessWidget {
                 actions: [
                   if (onCreateCommunity != null)
                     IconButton(
-                      icon: Icon(Icons.add, color: theme.inkColor),
+                      icon: Icon(Icons.add, color: theme.accentColor),
                       onPressed: onCreateCommunity,
                       tooltip: 'New community',
                     ),

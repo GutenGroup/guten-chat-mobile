@@ -8,6 +8,7 @@ import '../../cubit/inbox_cubit.dart';
 import '../../theme/chat_theme.dart';
 import '../groups/group_icon_mark.dart';
 import '../groups/group_icon_picker.dart';
+import '../shell/glass_bar.dart';
 
 /// Chats tab — DMs and non-community group threads (one scroll).
 class ChatsScreen extends StatelessWidget {
@@ -46,7 +47,8 @@ class ChatsScreen extends StatelessWidget {
             slivers: [
               SliverAppBar(
                 pinned: true,
-                backgroundColor: theme.backgroundColor,
+                backgroundColor: Colors.transparent,
+                flexibleSpace: glassBarFlexibleSpace(theme),
                 title: Text(
                   'Chats',
                   style: TextStyle(
@@ -57,7 +59,9 @@ class ChatsScreen extends StatelessWidget {
                 actions: [
                   if (onCreateGroup != null)
                     IconButton(
-                      icon: Icon(Icons.edit_outlined, color: theme.inkColor),
+                      // Primary affordance carries the host accent
+                      // (web `.gc-btn--primary` parity).
+                      icon: Icon(Icons.edit_outlined, color: theme.accentColor),
                       onPressed: onCreateGroup,
                       tooltip: 'New chat',
                     ),
@@ -236,13 +240,14 @@ class _ChatTile extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.inkColor,
+                      // Web parity: the unread pill is the accent chip.
+                      color: theme.accentColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       '${conversation.unreadCount}',
                       style: TextStyle(
-                        color: theme.backgroundColor,
+                        color: theme.sentTextColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),

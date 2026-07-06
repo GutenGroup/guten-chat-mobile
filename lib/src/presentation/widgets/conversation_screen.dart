@@ -60,6 +60,9 @@ class ConversationScreen extends StatelessWidget {
           // ancestor. Explicit false = one owner, composer flush on the
           // keyboard, always (WhatsApp standard, Daniel 2026-07-03).
           resizeToAvoidBottomInset: false,
+          // The header is translucent glass — the thread renders behind it
+          // and scrolls visibly under (MessageListView pads past the bar).
+          extendBodyBehindAppBar: true,
           appBar: ConversationHeader(
             title: resolvedTitle,
             conversation: state.conversation,

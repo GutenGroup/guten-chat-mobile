@@ -22,12 +22,19 @@ class _HtmlDocumentCardState extends State<HtmlDocumentCard> {
   late final WebViewController _controller;
   var _isLoading = true;
 
+  /// v0.5.0 thumbnail reset (web parity): shared HTML often ships zero body
+  /// margin and would sit edge-to-edge in the preview — inject breathing room
+  /// and a white ground. The fullscreen viewer renders the document raw.
+  static const _thumbReset =
+      '<style>html{background:#fff}body{margin:0;padding:14px;'
+      'box-sizing:border-box}</style>';
+
   @override
   void initState() {
     super.initState();
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.disabled)
-      ..setBackgroundColor(Colors.transparent)
+      ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(
         NavigationDelegate(onPageFinished: (_) {
           if (mounted) {
@@ -35,7 +42,7 @@ class _HtmlDocumentCardState extends State<HtmlDocumentCard> {
           }
         }),
       )
-      ..loadHtmlString(widget.html);
+      ..loadHtmlString(_thumbReset + widget.html);
   }
 
   @override
@@ -43,8 +50,8 @@ class _HtmlDocumentCardState extends State<HtmlDocumentCard> {
     final theme = chatThemeOf(context);
 
     return Material(
-      color: theme.backgroundColor,
-      borderRadius: BorderRadius.circular(14),
+      color: theme.surfaceColor,
+      borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => FullscreenHtmlViewer.show(
@@ -53,41 +60,44 @@ class _HtmlDocumentCardState extends State<HtmlDocumentCard> {
           title: widget.title,
         ),
         child: Container(
-          width: double.infinity,
+          // v0.5.0: document cards are content chrome, not brand surfaces —
+          // min(280, available) cap, neutral line border on the raised surface.
+          constraints: const BoxConstraints(maxWidth: 280),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: theme.accentColor.withValues(alpha: 0.55)),
+            color: theme.surfaceColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Row(
                   children: [
                     Icon(Icons.language_rounded,
-                        color: theme.accentColor, size: 18),
-                    const SizedBox(width: 8),
+                        color: theme.subtleTextColor, size: 16),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         widget.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: theme.inkColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                          color: theme.subtleTextColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
                       ),
                     ),
                     Icon(Icons.open_in_full_rounded,
-                        color: theme.subtleTextColor, size: 16),
+                        color: theme.subtleTextColor, size: 14),
                   ],
                 ),
               ),
               Divider(height: 1, color: theme.dividerColor),
               SizedBox(
-                height: 160,
+                height: 180,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

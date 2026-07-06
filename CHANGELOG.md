@@ -13,6 +13,25 @@
   outgoing bubble (same change the web module shipped in its v0.5.0).
 - Brand-reaction emphasized bubbles use the accent-contrast ink instead of
   hardcoded black/white.
+- **Full v0.5.0 component parity** (matching web guten-chat #14):
+  - **Voice recording is inline** — the composer input row swaps to a
+    recording bar (discard · pulsing red dot · tabular timer · accent
+    waveform · accent send). The modal recorder sheet is gone.
+  - **Voice player**: the web module's 32-bar waveform (same deterministic
+    heights), inked from the bubble it sits in (legible on accent AND
+    neutral bubbles), tap/drag to scrub, play button on a 16%-ink disc,
+    inline elapsed/total time. No more surface box inside the bubble.
+  - **Media bubbles**: an image-only message renders as a thin raised tile
+    (3px pad, hairline border) so transparent logos/stickers read as sent,
+    with the timestamp overlaid as a pill on the image (below-bubble time
+    row suppressed). Image caps 320×420.
+  - **Payment cards hug their content** (min 240 / max 320) on an
+    accent-tinted surface (7% accent over raised) with a 32% accent
+    hairline — no more full-width stretch.
+  - **HTML document cards**: 280px cap, neutral chrome, 180px preview with
+    a 14px-padding white-ground reset injected (arbitrary shared HTML no
+    longer sits edge-to-edge). Fullscreen still renders the document raw.
+  - **Composer send button carries the accent** (was ink-on-ink).
 
 ## 0.6.0
 

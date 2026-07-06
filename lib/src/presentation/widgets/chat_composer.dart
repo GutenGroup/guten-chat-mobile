@@ -1,7 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../domain/models/chat_features.dart';
 import '../../domain/models/message.dart';
@@ -11,7 +17,7 @@ import '../models/attachment_send_request.dart';
 import '../theme/chat_theme.dart';
 import '../utils/attachment_utils.dart';
 import 'expandable_icon_menu.dart';
-import 'voice_recorder_sheet.dart';
+import 'voice_note_attachment_view.dart' show VoiceWaveform;
 
 class ChatComposer extends StatefulWidget {
   const ChatComposer({
@@ -49,8 +55,18 @@ class _ChatComposerState extends State<ChatComposer> {
   final _imagePicker = ImagePicker();
   bool _isTyping = false;
 
+  // v0.5.0 inline recording state (web parity: recording swaps the input
+  // row for a recording bar — no modal).
+  final _recorder = FlutterSoundRecorder();
+  bool _isRecording = false;
+  Duration _recordElapsed = Duration.zero;
+  Timer? _recordTimer;
+  String? _recordFilePath;
+
   @override
   void dispose() {
+    _recordTimer?.cancel();
+    _recorder.closeRecorder();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -90,19 +106,95 @@ class _ChatComposerState extends State<ChatComposer> {
     return KeyEventResult.ignored;
   }
 
-  Future<void> _recordVoiceNote() async {
-    final result = await VoiceRecorderSheet.show(context);
-    if (result == null) {
+  Future<void> _startRecording() async {
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      _showPermissionMessage(
+        'Microphone access was denied — enable it in Settings to record '
+        'voice notes.',
+      );
       return;
     }
-    widget.onAttachment(
-      AttachmentSendRequest(
-        localPath: result.path,
-        kind: AttachmentKind.voiceNote,
-        fileName: 'voice_note.m4a',
-        durationMs: result.durationMs,
-      ),
-    );
+
+    try {
+      await _recorder.openRecorder();
+      final dir = await getTemporaryDirectory();
+      final path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.startRecorder(
+        toFile: path,
+        codec: Codec.aacMP4,
+        sampleRate: 44100,
+        bitRate: 128000,
+        audioSource: AudioSource.microphone,
+      );
+      _recordFilePath = path;
+      _recordElapsed = Duration.zero;
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() => _recordElapsed += const Duration(seconds: 1));
+        }
+      });
+      HapticFeedback.mediumImpact();
+      setState(() => _isRecording = true);
+    } catch (_) {
+      _showPermissionMessage('Could not start recording');
+      await _teardownRecording();
+    }
+  }
+
+  Future<void> _stopRecording({required bool send}) async {
+    _recordTimer?.cancel();
+    _recordTimer = null;
+    String? path;
+    try {
+      path = await _recorder.stopRecorder();
+    } catch (_) {
+      path = _recordFilePath;
+    }
+    final resolvedPath = path ?? _recordFilePath;
+    final elapsed = _recordElapsed;
+    await _teardownRecording();
+
+    if (send && resolvedPath != null && elapsed.inMilliseconds > 500) {
+      widget.onAttachment(
+        AttachmentSendRequest(
+          localPath: resolvedPath,
+          kind: AttachmentKind.voiceNote,
+          fileName: 'voice_note.m4a',
+          durationMs: elapsed.inMilliseconds,
+        ),
+      );
+      return;
+    }
+
+    if (resolvedPath != null) {
+      final file = File(resolvedPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+  }
+
+  Future<void> _teardownRecording() async {
+    try {
+      await _recorder.closeRecorder();
+    } catch (_) {
+      // Already closed.
+    }
+    _recordFilePath = null;
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _recordElapsed = Duration.zero;
+      });
+    }
+  }
+
+  String _formatElapsed(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString();
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   Future<void> _pickCamera() async {
@@ -236,7 +328,7 @@ class _ChatComposerState extends State<ChatComposer> {
       ExpandableMenuChoice(
         icon: Icons.mic_rounded,
         label: 'Voice note',
-        onTap: _recordVoiceNote,
+        onTap: _startRecording,
       ),
       ExpandableMenuChoice(
         icon: Icons.image_rounded,
@@ -335,55 +427,162 @@ class _ChatComposerState extends State<ChatComposer> {
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    ExpandableIconMenu(
-                      triggerIcon: Icons.add_rounded,
-                      choices: _buildMenuChoices(),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Focus(
-                        onKeyEvent: _handleKey,
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          minLines: 1,
-                          maxLines: 6,
-                          textInputAction: TextInputAction.newline,
-                          onChanged: _handleChanged,
-                          decoration: InputDecoration(
-                            hintText: 'Message',
-                            filled: true,
-                            fillColor: theme.dividerColor.withValues(alpha: 0.35),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
+                child: _isRecording
+                    // v0.5.0 recording bar: discard → red pulsing dot → timer
+                    // → waveform → send. Replaces the whole input row inline.
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            onPressed: () =>
+                                unawaited(_stopRecording(send: false)),
+                            tooltip: 'Discard recording',
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: theme.subtleTextColor,
                             ),
                           ),
-                        ),
+                          Expanded(
+                            child: Container(
+                              height: 44,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.dividerColor
+                                    .withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: theme.dividerColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  const _PulsingRecordDot(),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    _formatElapsed(_recordElapsed),
+                                    style: TextStyle(
+                                      color: theme.inkColor,
+                                      fontSize: 14,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: VoiceWaveform(
+                                      progress: 1,
+                                      ink: theme.accentColor,
+                                      height: 24,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton.filled(
+                            onPressed: () =>
+                                unawaited(_stopRecording(send: true)),
+                            icon: const Icon(Icons.send_rounded),
+                            style: IconButton.styleFrom(
+                              backgroundColor: theme.accentColor,
+                              foregroundColor: theme.sentTextColor,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          ExpandableIconMenu(
+                            triggerIcon: Icons.add_rounded,
+                            choices: _buildMenuChoices(),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Focus(
+                              onKeyEvent: _handleKey,
+                              child: TextField(
+                                controller: _controller,
+                                focusNode: _focusNode,
+                                minLines: 1,
+                                maxLines: 6,
+                                textInputAction: TextInputAction.newline,
+                                onChanged: _handleChanged,
+                                decoration: InputDecoration(
+                                  hintText: 'Message',
+                                  filled: true,
+                                  fillColor: theme.dividerColor
+                                      .withValues(alpha: 0.35),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          // v0.5.0: the send affordance carries the accent.
+                          IconButton.filled(
+                            onPressed: _send,
+                            icon: const Icon(Icons.send_rounded),
+                            style: IconButton.styleFrom(
+                              backgroundColor: theme.accentColor,
+                              foregroundColor: theme.sentTextColor,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton.filled(
-                      onPressed: _send,
-                      icon: const Icon(Icons.send_rounded),
-                      style: IconButton.styleFrom(
-                        backgroundColor: theme.inkColor,
-                        foregroundColor: theme.backgroundColor,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The v0.5.0 recording indicator: a red dot pulsing 1 → 0.25 opacity on a
+/// 1.3s cycle (web `gc-rec-pulse`). Danger red stays fixed across themes.
+class _PulsingRecordDot extends StatefulWidget {
+  const _PulsingRecordDot();
+
+  @override
+  State<_PulsingRecordDot> createState() => _PulsingRecordDotState();
+}
+
+class _PulsingRecordDotState extends State<_PulsingRecordDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+    lowerBound: 0.25,
+    upperBound: 1,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _controller,
+      child: const DecoratedBox(
+        decoration: BoxDecoration(
+          color: Color(0xFFF34526),
+          shape: BoxShape.circle,
+        ),
+        child: SizedBox(width: 10, height: 10),
       ),
     );
   }

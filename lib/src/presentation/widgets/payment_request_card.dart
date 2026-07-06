@@ -36,18 +36,27 @@ class PaymentRequestCard extends StatelessWidget {
       currencyCode: paymentRequest.currency,
     );
 
+    // v0.5.0: cards hug their content (min 240 / max 320) instead of
+    // stretching across the thread; subtle accent-tinted surface
+    // (accent 7% over raised) with an accent 32% hairline — tokens.json
+    // semantics, value-matched to the web .gc-pay-card.
+    final cardBg = Color.alphaBlend(
+      theme.accentColor.withValues(alpha: 0.07),
+      theme.surfaceColor,
+    );
+
     return Material(
-      color: theme.backgroundColor,
-      borderRadius: BorderRadius.circular(14),
+      color: cardBg,
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: Container(
-        width: double.infinity,
+        constraints: const BoxConstraints(minWidth: 240, maxWidth: 320),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: theme.accentColor.withValues(alpha: 0.55)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.accentColor.withValues(alpha: 0.32)),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -65,7 +74,7 @@ class PaymentRequestCard extends StatelessWidget {
                       style: TextStyle(
                         color: theme.inkColor,
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -76,7 +85,7 @@ class PaymentRequestCard extends StatelessWidget {
                 'Requested by $requesterName',
                 style: TextStyle(
                   color: theme.subtleTextColor,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
               ),
               if (paymentRequest.note != null &&

@@ -62,7 +62,8 @@ class MessageBubble extends StatelessWidget {
         ? theme.accentColor
         : (isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor);
     final textColor = isEmphasized
-        ? (theme.isDark ? Colors.black : Colors.white)
+        // Accent-filled bubble → accent-contrast ink (sentTextColor carries it).
+        ? theme.sentTextColor
         : (isOwn ? theme.sentTextColor : theme.receivedTextColor);
     final time = DateFormat.jm().format(message.createdAt.toLocal());
     final summaries = summarizeReactions(
@@ -151,29 +152,35 @@ class MessageBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        time,
-                        style: TextStyle(
-                          color: theme.subtleTextColor,
-                          fontSize: 11,
-                        ),
-                      ),
-                      if (features.readReceipts && isOwn) ...[
-                        const SizedBox(width: 4),
-                        _ReadReceiptIcon(
-                          isGroup: isGroup,
-                          seenCount: seenCount,
-                          isSending: message.status == MessageStatus.sending,
-                        ),
+                // Media-only bubbles carry the time as an overlay pill on the
+                // image (v0.5.0) — only the read receipt remains down here.
+                if (!MessageBubbleContent.isMediaOnly(message) ||
+                    (features.readReceipts && isOwn))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, left: 4, right: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!MessageBubbleContent.isMediaOnly(message))
+                          Text(
+                            time,
+                            style: TextStyle(
+                              color: theme.subtleTextColor,
+                              fontSize: 11,
+                            ),
+                          ),
+                        if (features.readReceipts && isOwn) ...[
+                          if (!MessageBubbleContent.isMediaOnly(message))
+                            const SizedBox(width: 4),
+                          _ReadReceiptIcon(
+                            isGroup: isGroup,
+                            seenCount: seenCount,
+                            isSending: message.status == MessageStatus.sending,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -293,6 +300,19 @@ class MessageBubbleContent extends StatelessWidget {
   final VoidCallback? onOpenContextMenu;
   final String? requesterName;
 
+  /// v0.5.0 media bubble: an image-only message renders as a thin raised tile
+  /// (so transparent logos/stickers still read as sent) with the timestamp
+  /// overlaid on the image — web `.gc-bubble--media` parity.
+  static bool isMediaOnly(Message message) {
+    return !message.isDeleted &&
+        !message.isSystem &&
+        message.body.isEmpty &&
+        message.paymentRequest == null &&
+        message.replyPreview == null &&
+        message.attachments.length == 1 &&
+        message.attachments.first.kind == AttachmentKind.image;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
@@ -316,6 +336,90 @@ class MessageBubbleContent extends StatelessWidget {
             color: textColor.withValues(alpha: 0.65),
             fontSize: 14,
             fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
+    if (isMediaOnly(message)) {
+      final time = DateFormat.jm().format(message.createdAt.toLocal());
+      final maxTileWidth = MediaQuery.sizeOf(context).width * 0.78;
+      final uploading = message.uploadProgress != null &&
+          message.status == MessageStatus.sending;
+      return GestureDetector(
+        onTap: canOpenMenu ? onOpenContextMenu : null,
+        onLongPress: canOpenMenu ? onOpenContextMenu : null,
+        child: Container(
+          key: bubbleKey,
+          // Image caps at 320 wide (web) + 3px tile padding + hairline.
+          constraints: BoxConstraints(
+            maxWidth: maxTileWidth < 328 ? maxTileWidth : 328,
+          ),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: theme.surfaceColor,
+            border: Border.all(color: theme.dividerColor),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            // Loose width: a small transparent logo keeps its natural size on
+            // the tile instead of being cover-stretched blurry.
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Stack(
+                children: [
+                  ImageAttachmentView(
+                    attachment: message.attachments.first,
+                    resolveUrl: resolveUrl,
+                    maxHeight: 420,
+                  ),
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        time,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (uploading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: LinearProgressIndicator(
+                    value: message.uploadProgress,
+                    minHeight: 3,
+                    color: theme.accentColor,
+                    backgroundColor:
+                        theme.dividerColor.withValues(alpha: 0.4),
+                  ),
+                ),
+              if (message.isFailed)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Failed to send',
+                    style: TextStyle(
+                      color: Colors.red.shade300,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );
@@ -448,6 +552,8 @@ class MessageBubbleContent extends StatelessWidget {
       return VoiceNoteAttachmentView(
         attachment: attachment,
         resolveUrl: resolveUrl,
+        // v0.5.0: the player inks from the bubble it sits in.
+        ink: textColor,
       );
     }
 

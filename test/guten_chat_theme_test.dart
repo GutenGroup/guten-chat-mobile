@@ -4,26 +4,44 @@ import 'package:guten_chat/guten_chat.dart';
 
 void main() {
   group('GutenChatTheme', () {
-    test('dark mode uses true black ground and monochrome bubbles', () {
+    test('dark mode: accent outgoing bubbles on neutral ground (v0.5.0 tokens)',
+        () {
       const config = GutenChatTheme(accentColor: Color(0xFF04AA72));
       final theme = config.toChatTheme(Brightness.dark);
 
       expect(theme.backgroundColor, const Color(0xFF000000));
-      expect(theme.receivedBubbleColor, const Color(0xFF141618));
-      expect(theme.sentBubbleColor, const Color(0xFFF3F3F3));
+      // tokens.json dark: bubble-in = #1f1f22 / #f3f3f3.
+      expect(theme.receivedBubbleColor, const Color(0xFF1F1F22));
       expect(theme.receivedTextColor, const Color(0xFFF3F3F3));
-      expect(theme.sentTextColor, const Color(0xFF000000));
+      // bubble-out = host accent with accent-contrast ink (default white).
+      expect(theme.sentBubbleColor, const Color(0xFF04AA72));
+      expect(theme.sentTextColor, const Color(0xFFFFFFFF));
       expect(theme.accentColor, const Color(0xFF04AA72));
     });
 
-    test('light mode inverts to white ground and black ink', () {
+    test('light mode: white ground, accent outgoing, token neutrals incoming',
+        () {
       const config = GutenChatTheme(accentColor: Color(0xFFF50F3C));
       final theme = config.toChatTheme(Brightness.light);
 
       expect(theme.backgroundColor, const Color(0xFFFFFFFF));
       expect(theme.inkColor, const Color(0xFF000000));
-      expect(theme.sentBubbleColor, const Color(0xFF000000));
+      // tokens.json light: bubble-out = accent / accent-contrast,
+      // bubble-in = #eceef1 / #0f0f0f.
+      expect(theme.sentBubbleColor, const Color(0xFFF50F3C));
       expect(theme.sentTextColor, const Color(0xFFFFFFFF));
+      expect(theme.receivedBubbleColor, const Color(0xFFECEEF1));
+      expect(theme.receivedTextColor, const Color(0xFF0F0F0F));
+    });
+
+    test('host can override the accent-contrast ink', () {
+      const config = GutenChatTheme(
+        accentColor: Color(0xFFB8FF00),
+        accentContrastColor: Color(0xFF0F0F0F),
+      );
+      final theme = config.toChatTheme(Brightness.dark);
+      expect(theme.sentBubbleColor, const Color(0xFFB8FF00));
+      expect(theme.sentTextColor, const Color(0xFF0F0F0F));
     });
 
     test('resolveBrightness respects appearance override', () {

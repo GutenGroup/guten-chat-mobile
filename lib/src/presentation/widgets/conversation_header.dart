@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/conversation.dart';
 import '../theme/chat_theme.dart';
 import 'groups/group_icon_mark.dart';
+import 'shell/glass_bar.dart';
 
 /// Thread header — title + icon only (no member subtitle).
 class ConversationHeader extends StatelessWidget implements PreferredSizeWidget {
@@ -29,6 +30,11 @@ class ConversationHeader extends StatelessWidget implements PreferredSizeWidget 
     final theme = chatThemeOf(context);
 
     return AppBar(
+      // Translucent glass chrome (Daniel 2026-07-06): messages scroll
+      // visibly under the header. The thread Scaffold extends its body
+      // behind this bar; the list pads itself past it.
+      backgroundColor: Colors.transparent,
+      flexibleSpace: glassBarFlexibleSpace(theme),
       leading: onBack != null
           ? BackButton(onPressed: onBack, color: theme.inkColor)
           : null,

@@ -99,7 +99,10 @@ class _TabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
-    final color = isSelected ? theme.inkColor : theme.subtleTextColor;
+    // Web parity: the active tab carries the host accent
+    // (`.gc-tab[aria-selected="true"]` on web) — the shell shows the DLS,
+    // not just the bubbles.
+    final color = isSelected ? theme.accentColor : theme.subtleTextColor;
 
     return InkWell(
       onTap: onTap,
@@ -142,7 +145,7 @@ class _ProfileTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeOf(context);
-    final color = isSelected ? theme.inkColor : theme.subtleTextColor;
+    final color = isSelected ? theme.accentColor : theme.subtleTextColor;
 
     return InkWell(
       onTap: onTap,
@@ -155,13 +158,13 @@ class _ProfileTabButton extends StatelessWidget {
             CircleAvatar(
               radius: 12,
               backgroundColor: isSelected
-                  ? theme.inkColor
+                  ? theme.accentColor
                   : theme.surfaceColor,
               child: Text(
                 initials,
                 style: TextStyle(
                   color: isSelected
-                      ? theme.backgroundColor
+                      ? theme.sentTextColor
                       : theme.subtleTextColor,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,

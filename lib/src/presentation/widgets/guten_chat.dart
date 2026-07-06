@@ -236,7 +236,13 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
                   handle: widget.profileHandle,
                   avatarInitials: initials,
                   appearance: _appearance,
-                  onAppearanceChanged: _onAppearanceChanged,
+                  // Host-pinned appearance (anything but `system`) removes
+                  // the in-chat toggle — the host DLS owns light/dark
+                  // (Fysigo is BLACK-ONLY, Daniel 2026-07-04).
+                  onAppearanceChanged:
+                      widget.theme.appearance == GutenChatAppearance.system
+                          ? _onAppearanceChanged
+                          : null,
                   onEditProfile: widget.onEditProfile,
                 ),
               ],

@@ -89,6 +89,7 @@ class _GutenChatState extends State<GutenChat> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    debugCheckGutenChatHostTheme(widget.theme);
     WidgetsBinding.instance.addObserver(this);
     _features = resolveFeatures(widget.features);
     _repository = widget.repository ??
@@ -281,6 +282,7 @@ class GutenChatConversationRoute extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugCheckGutenChatHostTheme(theme);
     final resolvedFeatures = resolveFeatures(features);
     final chatRepository = repository ??
         ChatRepositoryImpl(ChatRemoteDataSource(supabase));

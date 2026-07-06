@@ -62,7 +62,8 @@ class MessageBubble extends StatelessWidget {
         ? theme.accentColor
         : (isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor);
     final textColor = isEmphasized
-        ? (theme.isDark ? Colors.black : Colors.white)
+        // Accent-filled bubble → accent-contrast ink (sentTextColor carries it).
+        ? theme.sentTextColor
         : (isOwn ? theme.sentTextColor : theme.receivedTextColor);
     final time = DateFormat.jm().format(message.createdAt.toLocal());
     final summaries = summarizeReactions(

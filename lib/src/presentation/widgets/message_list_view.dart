@@ -125,7 +125,8 @@ class _MessageListViewState extends State<MessageListView> {
         ? theme.accentColor
         : (isOwn ? theme.sentBubbleColor : theme.receivedBubbleColor);
     final textColor = isEmphasized
-        ? (theme.isDark ? Colors.black : Colors.white)
+        // Accent-filled bubble → accent-contrast ink (sentTextColor carries it).
+        ? theme.sentTextColor
         : (isOwn ? theme.sentTextColor : theme.receivedTextColor);
 
     final cubit = context.read<ConversationCubit>();

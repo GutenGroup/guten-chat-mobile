@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0
+
+### Changed
+- **v0.5.0 web design parity — the accent finally does the talking.** Outgoing
+  bubbles now carry the host `accentColor` with `accentContrastColor` ink
+  (new host token, default white); incoming bubbles sit on the token neutral
+  (`#1F1F22` dark / `#ECEEF1` light). Values come from guten-chat
+  `foundation/design/tokens.json` — the ONE design source web already
+  generates from; this hand-port keeps the two skins value-identical until
+  the Flutter generator lands. Kills the old white-on-black max-contrast
+  outgoing bubble (same change the web module shipped in its v0.5.0).
+- Brand-reaction emphasized bubbles use the accent-contrast ink instead of
+  hardcoded black/white.
+
 ## 0.6.0
 
 ### Added

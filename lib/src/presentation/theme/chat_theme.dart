@@ -12,26 +12,36 @@ enum GutenChatAppearance {
   dark,
 }
 
-/// Host-injected theme config. Base palette is always black & white; only
-/// [accentColor] carries brand colour (Fysigo teal, Techpool crimson, etc.).
+/// Host-injected theme config. Neutral ground with the host DLS accent doing
+/// real work: outgoing bubbles carry [accentColor] with [accentContrastColor]
+/// ink, incoming bubbles sit on a neutral raised surface — the v0.5.0 design
+/// (iMessage/WhatsApp standard), value-identical to the web module. Colour
+/// values come from guten-chat `foundation/design/tokens.json` (the ONE design
+/// source); when the Flutter generator lands this file becomes generated.
 class GutenChatTheme {
   const GutenChatTheme({
     this.accentColor = const Color(0xFF888888),
+    this.accentContrastColor = const Color(0xFFFFFFFF),
     this.appearance = GutenChatAppearance.system,
   });
 
   /// Single accent token from the host app's design system.
   final Color accentColor;
 
+  /// Ink on top of [accentColor] (web: `--accent-contrast`, default white).
+  final Color accentContrastColor;
+
   /// System / light / dark override for the chat shell.
   final GutenChatAppearance appearance;
 
   GutenChatTheme copyWith({
     Color? accentColor,
+    Color? accentContrastColor,
     GutenChatAppearance? appearance,
   }) {
     return GutenChatTheme(
       accentColor: accentColor ?? this.accentColor,
+      accentContrastColor: accentContrastColor ?? this.accentContrastColor,
       appearance: appearance ?? this.appearance,
     );
   }
@@ -56,9 +66,11 @@ class GutenChatTheme {
         brightness: Brightness.dark,
         backgroundColor: const Color(0xFF000000),
         surfaceColor: const Color(0xFF141618),
-        sentBubbleColor: const Color(0xFFF3F3F3),
-        receivedBubbleColor: const Color(0xFF141618),
-        sentTextColor: const Color(0xFF000000),
+        // tokens.json dark: bubble-out = accent / accent-contrast,
+        // bubble-in = #1f1f22 / #f3f3f3 (v0.5.0 — accent does the talking).
+        sentBubbleColor: accentColor,
+        receivedBubbleColor: const Color(0xFF1F1F22),
+        sentTextColor: accentContrastColor,
         receivedTextColor: const Color(0xFFF3F3F3),
         composerBackgroundColor: const Color(0xFF000000),
         dividerColor: const Color(0xFF2A2A2A),
@@ -77,10 +89,12 @@ class GutenChatTheme {
       brightness: Brightness.light,
       backgroundColor: const Color(0xFFFFFFFF),
       surfaceColor: const Color(0xFFF5F5F5),
-      sentBubbleColor: const Color(0xFF000000),
-      receivedBubbleColor: const Color(0xFFE8E8E8),
-      sentTextColor: const Color(0xFFFFFFFF),
-      receivedTextColor: const Color(0xFF000000),
+      // tokens.json light: bubble-out = accent / accent-contrast,
+      // bubble-in = #eceef1 / #0f0f0f.
+      sentBubbleColor: accentColor,
+      receivedBubbleColor: const Color(0xFFECEEF1),
+      sentTextColor: accentContrastColor,
+      receivedTextColor: const Color(0xFF0F0F0F),
       composerBackgroundColor: const Color(0xFFFFFFFF),
       dividerColor: const Color(0xFFE5E5E5),
       subtleTextColor: const Color(0xFF6B7280),

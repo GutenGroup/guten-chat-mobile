@@ -363,7 +363,9 @@ class MessageBubbleContent extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Loose width: a small transparent logo keeps its natural size on
+            // the tile instead of being cover-stretched blurry.
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Stack(
                 children: [

@@ -59,6 +59,7 @@ class _ChatComposerState extends State<ChatComposer> {
   // row for a recording bar — no modal).
   final _recorder = FlutterSoundRecorder();
   bool _isRecording = false;
+  bool _isStopping = false;
   Duration _recordElapsed = Duration.zero;
   Timer? _recordTimer;
   String? _recordFilePath;
@@ -107,6 +108,9 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   Future<void> _startRecording() async {
+    if (_isRecording) {
+      return;
+    }
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
       _showPermissionMessage(
@@ -144,6 +148,13 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   Future<void> _stopRecording({required bool send}) async {
+    // Re-entrancy guard: a double-tap on Send (or Discard-then-Send) must
+    // not emit the same file twice — the platform stop/close calls suspend
+    // long enough for a second tap to land.
+    if (_isStopping) {
+      return;
+    }
+    _isStopping = true;
     _recordTimer?.cancel();
     _recordTimer = null;
     String? path;
@@ -177,12 +188,15 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   Future<void> _teardownRecording() async {
+    _recordTimer?.cancel();
+    _recordTimer = null;
     try {
       await _recorder.closeRecorder();
     } catch (_) {
       // Already closed.
     }
     _recordFilePath = null;
+    _isStopping = false;
     if (mounted) {
       setState(() {
         _isRecording = false;

@@ -1,8 +1,39 @@
 name: CI
 
+# COST GUARD, 2026-08-23. `build-ios` below runs on macos-latest, which bills at
+# $0.062/min against ubuntu's $0.006 — 10.3x. This repo billed **$94.24 of macOS
+# in July 2026** and has run once since; the shape below is what made that
+# number, and it will make it again the next time the repo gets active.
+#
+# Two defects, both fixed here:
+#   1. `push:` carried NO branch filter, so every push to every feature branch
+#      built iOS on macOS — and because `pull_request:` also fired, an open PR
+#      built it TWICE per push. `push` is now main-only; feature branches are
+#      covered by the pull_request trigger.
+#   2. No concurrency group, so three pushes in a row left three macOS builds
+#      racing to completion instead of cancelling the two that no longer mattered.
+#
+# paths-ignore is safe here: this repo has no required status checks and no
+# rulesets (verified 2026-08-23), so a skipped workflow cannot leave a PR stuck
+# on a pending context — unlike fysigo-web, where that trap is real. Re-check
+# before adding branch protection.
 on:
   push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+# Never cancel on main: the post-merge run is the record of what landed.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze-and-test:

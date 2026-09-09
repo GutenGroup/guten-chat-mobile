@@ -45,3 +45,8 @@ Flutter >=3.24 / Dart >=3.4 (`pubspec.yaml`; supabase_flutter, flutter_bloc).
 ## Git
 
 Confirm before commit/push. Daniel handles git.
+
+
+## The backlog
+
+The backlog is GitHub Issues in this repo, never a file. Claim = assign yourself, then branch + draft PR; the PR closes the issue. Labels: `agent:go` (ready for an agent), `agent:working` (claimed), `risk:high` (Daniel's click), `cost:high|medium|low` (what it costs to leave alone — the ranking). Find work: `gh issue list --label agent:go --no-assignee --json number,title,labels --limit 50`. Rule: techpool-inc/dev-setup `standards/THE-BACKLOG.md`.

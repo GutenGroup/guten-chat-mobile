@@ -1,0 +1,36 @@
+name: Task
+description: Work to do
+labels:
+  - task
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+    validations:
+      required: true
+  - type: dropdown
+    id: cost
+    attributes:
+      label: Cost of leaving alone
+      options:
+        - cost:high
+        - cost:medium
+        - cost:low
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      options:
+        - normal
+        - risk:high
+    validations:
+      required: true

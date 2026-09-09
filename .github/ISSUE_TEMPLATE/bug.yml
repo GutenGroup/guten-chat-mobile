@@ -1,0 +1,43 @@
+name: Bug
+description: Something observed that is wrong
+labels:
+  - bug
+body:
+  - type: textarea
+    id: observed
+    attributes:
+      label: What was observed
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: File, route or screen
+    validations:
+      required: true
+  - type: dropdown
+    id: cost
+    attributes:
+      label: Cost of leaving alone
+      options:
+        - cost:high
+        - cost:medium
+        - cost:low
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      options:
+        - normal
+        - risk:high
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+    validations:
+      required: false
